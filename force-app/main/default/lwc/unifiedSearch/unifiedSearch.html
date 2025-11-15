@@ -5,28 +5,27 @@
       <div class="slds-text-heading_large slds-m-bottom_medium">
         Unified Knowledge Search
       </div>
-      <div class="slds-grid slds-gutters">
+      <div class="slds-grid slds-gutters slds-grid_align-center">
         <div class="slds-col slds-size_1-of-1 slds-large-size_8-of-12">
-          <lightning-input
-            type="text"
-            label="Search Articles"
-            value={searchQuery}
-            onchange={handleSearchInputChange}
-            onkeypress={handleKeyPress}
-            placeholder="Enter your search query..."
-            class="large-search-input"
-          >
-          </lightning-input>
-        </div>
-        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-12">
-          <lightning-button
-            label="Search"
-            variant="brand"
-            onclick={handleSearch}
-            class="slds-m-top_large slds-button_stretch"
-            icon-name="utility:search"
-            icon-position="left"
-          ></lightning-button>
+          <div class="modern-search-container">
+            <lightning-icon
+              icon-name="utility:search"
+              alternative-text="Search"
+              class="search-icon"
+              size="small"
+            ></lightning-icon>
+            <lightning-input
+              type="text"
+              label="Search Articles"
+              value={searchQuery}
+              onchange={handleSearchInputChange}
+              onkeypress={handleKeyPress}
+              placeholder="Search articles..."
+              class="modern-search-input"
+              variant="label-hidden"
+            >
+            </lightning-input>
+          </div>
         </div>
         <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-12">
           <lightning-combobox
@@ -34,9 +33,20 @@
             value={sourceFilter}
             options={sourceOptions}
             onchange={handleSourceFilterChange}
-            class="slds-m-top_large"
+            class="source-filter"
             variant="label-hidden"
+            placeholder="All Sources"
           ></lightning-combobox>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-12">
+          <lightning-button
+            label="Search"
+            variant="brand"
+            onclick={handleSearch}
+            class="slds-button_stretch search-button"
+            icon-name="utility:search"
+            icon-position="left"
+          ></lightning-button>
         </div>
       </div>
     </div>
@@ -133,78 +143,44 @@
 
         <!-- Results List -->
         <template if:true={hasResults}>
-          <div class="slds-grid slds-wrap">
+          <div class="results-grid">
             <template for:each={articles} for:item="article">
-              <div
+              <article
                 key={article.id}
-                class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-2"
+                class="result-card"
               >
-                <article class="slds-card slds-m-bottom_medium article-card">
-                  <div class="slds-card__header slds-grid">
-                    <header class="slds-media slds-media_center slds-has-flexi-truncate">
-                      <div class="slds-media__figure">
-                        <lightning-badge
-                          label={article.source}
-                          class={article.badgeClass}
-                        ></lightning-badge>
-                      </div>
-                      <div class="slds-media__body">
-                        <h2 class="slds-card__header-title">
-                          <a
-                            href="javascript:void(0);"
-                            data-id={article.id}
-                            data-source={article.source}
-                            onclick={handleViewArticle}
-                            class="slds-card__header-link"
-                          >
-                            {article.title}
-                          </a>
-                        </h2>
-                      </div>
-                    </header>
+                <div class="result-card-header">
+                  <lightning-badge
+                    label={article.source}
+                    class={article.badgeClass}
+                  ></lightning-badge>
+                </div>
+                <div class="result-card-body">
+                  <h3 class="result-card-title">
+                    <a
+                      href="javascript:void(0);"
+                      data-id={article.id}
+                      data-source={article.source}
+                      onclick={handleViewArticle}
+                      class="result-title-link"
+                    >
+                      {article.title}
+                    </a>
+                  </h3>
+                  <p class="result-card-snippet">{article.snippet}</p>
+                  <div class="result-card-footer">
+                    <a
+                      href="javascript:void(0);"
+                      data-id={article.id}
+                      data-source={article.source}
+                      onclick={handleViewArticle}
+                      class="read-more-link"
+                    >
+                      Read more
+                    </a>
                   </div>
-                  <div class="slds-card__body slds-card__body_inner">
-                    <p class="slds-text-body_regular slds-m-bottom_small">{article.snippet}</p>
-                    <template if:true={article.tags}>
-                      <div class="slds-m-bottom_small">
-                        <template for:each={article.tags} for:item="tag">
-                          <lightning-badge
-                            key={tag}
-                            label={tag}
-                            class="slds-m-right_xx-small slds-m-bottom_xx-small"
-                          ></lightning-badge>
-                        </template>
-                      </div>
-                    </template>
-                    <template if:true={article.url}>
-                      <div class="slds-grid slds-grid_align-spread slds-m-bottom_small article-link-container">
-                        <div class="slds-grid slds-grid_align-center slds-grow">
-                          <lightning-formatted-url
-                            value={article.url}
-                            label=""
-                            target="_blank"
-                            class="slds-text-body_small"
-                          ></lightning-formatted-url>
-                        </div>
-                        <lightning-button-icon
-                          icon-name="utility:copy"
-                          variant="border-filled"
-                          alternative-text="Copy link"
-                          title="Copy link to clipboard"
-                          data-url={article.url}
-                          onclick={handleCopyLink}
-                          class="slds-m-left_x-small copy-link-button"
-                        ></lightning-button-icon>
-                      </div>
-                    </template>
-                    <div class="slds-text-body_small slds-text-color_weak">
-                      <template if:true={article.formattedLastModifiedDate}>
-                        Updated: {article.formattedLastModifiedDate}
-                      </template>
-                    </div>
-                  </div>
-                </article>
-              </div>
+                </div>
+              </article>
             </template>
           </div>
 
@@ -243,81 +219,44 @@
               <div class="slds-text-heading_medium slds-m-bottom_medium">
                 Popular Articles
               </div>
-              <div class="slds-grid slds-wrap">
+              <div class="results-grid">
                 <template for:each={popularArticles} for:item="article">
-                  <div
+                  <article
                     key={article.id}
-                    class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-3"
+                    class="result-card"
                   >
-                    <article class="slds-card slds-m-bottom_medium article-card">
-                      <div class="slds-card__header slds-grid">
-                        <header class="slds-media slds-media_center slds-has-flexi-truncate">
-                          <div class="slds-media__figure">
-                            <lightning-badge
-                              label={article.source}
-                              class={article.badgeClass}
-                            ></lightning-badge>
-                          </div>
-                          <div class="slds-media__body">
-                            <h2 class="slds-card__header-title">
-                              <a
-                                href="javascript:void(0);"
-                                data-id={article.id}
-                                data-source={article.source}
-                                onclick={handleViewArticle}
-                                class="slds-card__header-link"
-                              >
-                                {article.title}
-                              </a>
-                            </h2>
-                          </div>
-                        </header>
+                    <div class="result-card-header">
+                      <lightning-badge
+                        label={article.source}
+                        class={article.badgeClass}
+                      ></lightning-badge>
+                    </div>
+                    <div class="result-card-body">
+                      <h3 class="result-card-title">
+                        <a
+                          href="javascript:void(0);"
+                          data-id={article.id}
+                          data-source={article.source}
+                          onclick={handleViewArticle}
+                          class="result-title-link"
+                        >
+                          {article.title}
+                        </a>
+                      </h3>
+                      <p class="result-card-snippet">{article.snippet}</p>
+                      <div class="result-card-footer">
+                        <a
+                          href="javascript:void(0);"
+                          data-id={article.id}
+                          data-source={article.source}
+                          onclick={handleViewArticle}
+                          class="read-more-link"
+                        >
+                          Read more
+                        </a>
                       </div>
-                      <div class="slds-card__body slds-card__body_inner">
-                        <p class="slds-text-body_regular slds-m-bottom_small">{article.snippet}</p>
-                        <template if:true={article.tags}>
-                          <div class="slds-m-bottom_small">
-                            <template for:each={article.tags} for:item="tag">
-                              <lightning-badge
-                                key={tag}
-                                label={tag}
-                                class="slds-m-right_xx-small slds-m-bottom_xx-small"
-                              ></lightning-badge>
-                            </template>
-                          </div>
-                        </template>
-                        <template if:true={article.url}>
-                          <div class="slds-grid slds-grid_align-spread slds-m-bottom_small article-link-container">
-                            <div class="slds-grid slds-grid_align-center slds-grow">
-                              <lightning-formatted-url
-                                value={article.url}
-                                label=""
-                                target="_blank"
-                                class="slds-text-body_small"
-                              ></lightning-formatted-url>
-                            </div>
-                            <lightning-button-icon
-                              icon-name="utility:copy"
-                              variant="border-filled"
-                              alternative-text="Copy link"
-                              title="Copy link to clipboard"
-                              data-url={article.url}
-                              onclick={handleCopyLink}
-                              class="slds-m-left_x-small copy-link-button"
-                            ></lightning-button-icon>
-                          </div>
-                        </template>
-                        <div class="slds-text-body_small slds-text-color_weak">
-                          <template if:true={article.viewCount}>
-                            <span class="slds-m-right_small">{article.viewCount} views</span>
-                          </template>
-                          <template if:true={article.formattedLastModifiedDate}>
-                            Updated: {article.formattedLastModifiedDate}
-                          </template>
-                        </div>
-                      </div>
-                    </article>
-                  </div>
+                    </div>
+                  </article>
                 </template>
               </div>
             </div>
