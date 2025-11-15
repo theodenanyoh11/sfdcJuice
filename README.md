@@ -42,7 +42,7 @@ Before you start, make sure you have:
 
 Click the button below to install sfdcJuice in your Salesforce org:
 
-[![Deploy to Salesforce](images/deploy-button.png)](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tgK0000007IRdQAM)
+[<img src="images/deploy-button.png" alt="Deploy to Salesforce" width="200" height="50">](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tgK0000007IRdQAM)
 
 **What happens:**
 1. Click the button above
