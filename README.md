@@ -28,7 +28,7 @@ Before you start, make sure you have:
 
 Click the button below to install sfdcJuice in your Salesforce org:
 
-**[👉 Click here to install sfdcJuice](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tgK0000007HybQAE)**
+**[👉 Click here to install sfdcJuice](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tgK0000007IRdQAM)**
 
 **What happens:**
 1. Click the button above
