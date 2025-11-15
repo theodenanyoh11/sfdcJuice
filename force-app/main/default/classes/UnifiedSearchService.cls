@@ -34,18 +34,28 @@ public class UnifiedSearchService {
         }
       }
 
+      // Calculate how many results we need from each service
+      // Request enough to cover the current page and future pages (up to 10 pages, capped at 1000)
+      // This ensures we have enough results to paginate after combining and filtering
+      Integer currentPage = request.pageNumber != null ? request.pageNumber : 1;
+      Integer resultsNeeded = maxResults * Math.max(currentPage, 10);
+      if (resultsNeeded > 1000) {
+        resultsNeeded = 1000; // Cap at 1000 to avoid performance issues
+      }
+
       List<UnifiedArticle> helpjuiceArticles = new List<UnifiedArticle>();
       List<UnifiedArticle> salesforceArticles = new List<UnifiedArticle>();
 
       // Search Helpjuice if source filter allows
+      // Always request page 1 with enough results to cover pagination after combining
       if (
         request.sourceFilter == 'All' || request.sourceFilter == 'Helpjuice'
       ) {
         try {
           helpjuiceArticles = HelpjuiceApiService.searchArticles(
             request.searchQuery,
-            maxResults,
-            request.pageNumber
+            resultsNeeded,
+            1 // Always request page 1, we'll paginate after combining
           );
           System.debug(
             LoggingLevel.INFO,
@@ -101,6 +111,7 @@ public class UnifiedSearchService {
       }
 
       // Search Salesforce Knowledge if source filter allows
+      // Always request page 1 with enough results to cover pagination after combining
       if (
         request.sourceFilter == 'All' ||
         request.sourceFilter == 'Salesforce'
@@ -108,8 +119,8 @@ public class UnifiedSearchService {
         try {
           salesforceArticles = SalesforceKnowledgeService.searchArticles(
             request.searchQuery,
-            maxResults,
-            request.pageNumber
+            resultsNeeded,
+            1 // Always request page 1, we'll paginate after combining
           );
         } catch (Exception e) {
           System.debug(
@@ -276,7 +287,8 @@ public class UnifiedSearchService {
       }
 
       // Filter by date range (using lastModifiedDate)
-      if (request.dateFrom != null) {
+      // Note: Articles with null lastModifiedDate are included (we can't determine if they're in range)
+      if (request.dateFrom != null && article.lastModifiedDate != null) {
         // Set dateFrom to start of day (00:00:00) for inclusive comparison
         DateTime dateFromStart = DateTime.newInstance(
           request.dateFrom.year(),
@@ -286,15 +298,12 @@ public class UnifiedSearchService {
           0,
           0
         );
-        if (
-          article.lastModifiedDate == null ||
-          article.lastModifiedDate < dateFromStart
-        ) {
+        if (article.lastModifiedDate < dateFromStart) {
           include = false;
         }
       }
 
-      if (request.dateTo != null) {
+      if (request.dateTo != null && article.lastModifiedDate != null) {
         // Set dateTo to end of day (23:59:59) for inclusive comparison
         DateTime dateToEnd = DateTime.newInstance(
           request.dateTo.year(),
@@ -304,10 +313,7 @@ public class UnifiedSearchService {
           59,
           59
         );
-        if (
-          article.lastModifiedDate == null ||
-          article.lastModifiedDate > dateToEnd
-        ) {
+        if (article.lastModifiedDate > dateToEnd) {
           include = false;
         }
       }
