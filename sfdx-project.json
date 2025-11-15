@@ -15,6 +15,7 @@
   "sourceApiVersion": "65.0",
   "packageAliases": {
     "sfdcJuice": "0HogK0000000YuXSAU",
-    "sfdcJuice@0.1.0-1": "04tgK0000007HybQAE"
+    "sfdcJuice@0.1.0-1": "04tgK0000007HybQAE",
+    "sfdcJuice@0.1.0-2": "04tgK0000007IRdQAM"
   }
 }

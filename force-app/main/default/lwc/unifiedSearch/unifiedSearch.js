@@ -16,6 +16,7 @@ export default class UnifiedSearch extends LightningElement {
   @track currentPage = 1;
   @track totalPages = 1;
   @track hasMore = false;
+  @track pageSize = 10; // Default page size
 
   // Filter options
   @track selectedTags = [];
@@ -36,11 +37,14 @@ export default class UnifiedSearch extends LightningElement {
   // Filter menu state
   @track showFilterMenu = false;
   filterMenuToggleTime = 0; // Track when filter menu was toggled to prevent immediate closure
+  listenerSetupTimeoutId = null; // Track timeout ID to prevent memory leaks
+  isComponentConnected = false; // Track connection state to prevent adding listeners after disconnect
 
   // Popular articles and categories (shown when no search query)
   @track popularArticles = [];
   @track categories = [];
   @track isLoadingPopular = false;
+  @track activeTab = 'articles'; // 'articles' or 'categories'
 
   get sourceOptions() {
     return [
@@ -48,6 +52,19 @@ export default class UnifiedSearch extends LightningElement {
       { label: 'Helpjuice', value: 'Helpjuice' },
       { label: 'Salesforce', value: 'Salesforce' }
     ];
+  }
+
+  get pageSizeOptions() {
+    return [
+      { label: '10', value: '10' },
+      { label: '25', value: '25' },
+      { label: '50', value: '50' },
+      { label: '100', value: '100' }
+    ];
+  }
+
+  get pageSizeString() {
+    return String(this.pageSize);
   }
 
   get hasResults() {
@@ -58,8 +75,48 @@ export default class UnifiedSearch extends LightningElement {
     return !this.hasResults && this.popularArticles && this.popularArticles.length > 0;
   }
 
+  get displayedPopularArticles() {
+    // Limit to 8 articles for display
+    if (!this.popularArticles || this.popularArticles.length === 0) {
+      return [];
+    }
+    return this.popularArticles.slice(0, 8);
+  }
+
   get showCategories() {
     return !this.hasResults && this.categories && this.categories.length > 0;
+  }
+
+  get showTabs() {
+    // Show tabs if we have either popular articles or categories (and no search results)
+    return !this.hasResults && (
+      (this.popularArticles && this.popularArticles.length > 0) ||
+      (this.categories && this.categories.length > 0)
+    );
+  }
+
+  get isArticlesTabActive() {
+    return this.activeTab === 'articles';
+  }
+
+  get isCategoriesTabActive() {
+    return this.activeTab === 'categories';
+  }
+
+  get articlesTabIndex() {
+    return this.isArticlesTabActive ? '0' : '-1';
+  }
+
+  get categoriesTabIndex() {
+    return this.isCategoriesTabActive ? '0' : '-1';
+  }
+
+  get articlesTabStyle() {
+    return this.isArticlesTabActive ? 'display: block;' : 'display: none;';
+  }
+
+  get categoriesTabStyle() {
+    return this.isCategoriesTabActive ? 'display: block;' : 'display: none;';
   }
 
   get hasFilters() {
@@ -148,6 +205,36 @@ export default class UnifiedSearch extends LightningElement {
     }
     this.filterMenuToggleTime = Date.now();
     this.showFilterMenu = !this.showFilterMenu;
+    
+    // Calculate and set panel position when opening
+    if (this.showFilterMenu) {
+      setTimeout(() => {
+        this.positionFilterPanel();
+      }, 0);
+    }
+  }
+
+  handleTabChange(event) {
+    const tab = event.currentTarget.dataset.tab;
+    if (tab) {
+      this.activeTab = tab;
+    }
+  }
+
+  positionFilterPanel() {
+    const searchBar = this.template.querySelector('.unified-search-bar');
+    const filterPanel = this.template.querySelector('.filter-panel-dropdown');
+    
+    if (searchBar && filterPanel) {
+      const rect = searchBar.getBoundingClientRect();
+      
+      // Position panel below the search bar
+      // getBoundingClientRect() returns viewport-relative coordinates
+      // and position: fixed also positions relative to viewport, so no scroll offset needed
+      filterPanel.style.top = `${rect.bottom + 8}px`;
+      filterPanel.style.left = `${rect.left}px`;
+      filterPanel.style.width = `${rect.width}px`;
+    }
   }
 
   handleCloseDrawer(event) {
@@ -186,6 +273,7 @@ export default class UnifiedSearch extends LightningElement {
     this.hasError = false;
     this.errorMessage = '';
     this.showFilterMenu = false;
+    this.activeTab = 'articles'; // Reset to default tab
     this.loadPopularContent();
   }
 
@@ -244,8 +332,24 @@ export default class UnifiedSearch extends LightningElement {
   }
 
   connectedCallback() {
+    // Mark component as connected
+    this.isComponentConnected = true;
+    
     // Load popular articles and categories when component loads (no search query)
     this.loadPopularContent();
+    
+    // Add resize and scroll listeners to reposition panel
+    this.handleResize = () => {
+      if (this.showFilterMenu) {
+        this.positionFilterPanel();
+      }
+    };
+    
+    this.handleScroll = () => {
+      if (this.showFilterMenu) {
+        this.positionFilterPanel();
+      }
+    };
     
     // Add click outside listener to close filter drawer
     this.handleClickOutside = (event) => {
@@ -258,8 +362,8 @@ export default class UnifiedSearch extends LightningElement {
       }
       
       // Get the panel and backdrop elements
-      const filterPanel = this.template.querySelector('.filter-panel');
-      const backdrop = this.template.querySelector('.slds-panel__backdrop');
+      const filterPanel = this.template.querySelector('.filter-panel-dropdown');
+      const backdrop = this.template.querySelector('.filter-panel-backdrop');
       
       if (!filterPanel) {
         this.showFilterMenu = false;
@@ -296,6 +400,19 @@ export default class UnifiedSearch extends LightningElement {
         // Direct match
         if (node === filterPanel) return true;
         
+        // Check if this is a Lightning component (tagName starts with 'lightning-')
+        const tagName = node.tagName ? node.tagName.toLowerCase() : '';
+        if (tagName.startsWith('lightning-')) {
+          // Check if this Lightning component is inside the panel
+          try {
+            if (filterPanel.contains(node)) return true;
+            // Also check using closest
+            if (node.closest && node.closest('.filter-panel-dropdown')) return true;
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+        
         // Check if panel contains this node
         try {
           if (filterPanel.contains(node)) return true;
@@ -309,15 +426,42 @@ export default class UnifiedSearch extends LightningElement {
             const root = node.getRootNode();
             if (root instanceof ShadowRoot && root.host) {
               const host = root.host;
+              // Check if the host is a Lightning component in the panel
               if (filterPanel.contains(host)) return true;
+              // Also check if host has the panel as ancestor
+              let current = host;
+              let depth = 0;
+              while (current && depth < 10) {
+                if (current === filterPanel || 
+                    (current.closest && current.closest('.filter-panel-dropdown'))) {
+                  return true;
+                }
+                current = current.parentElement || current.parentNode;
+                depth++;
+              }
             }
           } catch (e) {
             // Ignore errors
           }
         }
         
-        // Use closest
-        if (node.closest && node.closest('.filter-panel')) return true;
+        // Use closest to check if element is inside panel
+        try {
+          if (node.closest && node.closest('.filter-panel-dropdown')) return true;
+        } catch (e) {
+          // Ignore errors
+        }
+        
+        // Traverse up to find if we're inside the panel
+        let current = node;
+        let depth = 0;
+        while (current && current !== document && current !== document.body && depth < 15) {
+          if (current === filterPanel) return true;
+          if (current.classList && current.classList.contains('filter-panel-dropdown')) return true;
+          if (current.dataset && current.dataset.filterDrawer === 'true') return true;
+          current = current.parentElement || current.parentNode;
+          depth++;
+        }
         
         return false;
       });
@@ -341,19 +485,44 @@ export default class UnifiedSearch extends LightningElement {
     };
     
     // Use capture phase and setTimeout to avoid immediate closure when clicking the button
-    setTimeout(() => {
-      document.addEventListener('click', this.handleClickOutside, true);
-      document.addEventListener('keydown', this.handleEscapeKey, true);
+    // Store timeout ID so we can cancel it if component disconnects before it executes
+    this.listenerSetupTimeoutId = setTimeout(() => {
+      // Clear the timeout ID since it's now executing
+      this.listenerSetupTimeoutId = null;
+      
+      // Only add listeners if component is still connected
+      // This prevents memory leaks if component disconnects before timeout executes
+      if (this.isComponentConnected) {
+        document.addEventListener('click', this.handleClickOutside, true);
+        document.addEventListener('keydown', this.handleEscapeKey, true);
+        window.addEventListener('resize', this.handleResize);
+        window.addEventListener('scroll', this.handleScroll, true);
+      }
     }, 0);
   }
 
   disconnectedCallback() {
-    // Remove event listeners
+    // Mark component as disconnected to prevent listeners from being added
+    this.isComponentConnected = false;
+    
+    // Cancel pending timeout if component disconnects before listeners are added
+    if (this.listenerSetupTimeoutId !== null) {
+      clearTimeout(this.listenerSetupTimeoutId);
+      this.listenerSetupTimeoutId = null;
+    }
+    
+    // Remove event listeners (safe to call even if they weren't added)
     if (this.handleClickOutside) {
       document.removeEventListener('click', this.handleClickOutside, true);
     }
     if (this.handleEscapeKey) {
       document.removeEventListener('keydown', this.handleEscapeKey, true);
+    }
+    if (this.handleResize) {
+      window.removeEventListener('resize', this.handleResize);
+    }
+    if (this.handleScroll) {
+      window.removeEventListener('scroll', this.handleScroll, true);
     }
   }
 
@@ -371,6 +540,14 @@ export default class UnifiedSearch extends LightningElement {
         this.categories = categoriesResult || [];
         // Format dates for popular articles
         this.popularArticles = this.formatArticleDates(this.popularArticles);
+        
+        // Set default active tab based on available content
+        // If we have popular articles, default to articles tab, otherwise categories
+        if (this.popularArticles && this.popularArticles.length > 0) {
+          this.activeTab = 'articles';
+        } else if (this.categories && this.categories.length > 0) {
+          this.activeTab = 'categories';
+        }
       } catch (error) {
         console.error('Error loading popular content:', error);
         // Don't show error to user - just log it
@@ -396,7 +573,7 @@ export default class UnifiedSearch extends LightningElement {
         categoryFilters: this.selectedCategories,
         dateFrom: this.dateFrom,
         dateTo: this.dateTo,
-        maxResults: 25,
+        maxResults: this.pageSize,
         pageNumber: this.currentPage
       };
 
@@ -715,6 +892,19 @@ export default class UnifiedSearch extends LightningElement {
       this.currentPage++;
       this.performSearch();
       this.scrollToTop();
+    }
+  }
+
+  handlePageSizeChange(event) {
+    const newPageSize = parseInt(event.detail.value, 10);
+    if (newPageSize !== this.pageSize) {
+      this.pageSize = newPageSize;
+      // Reset to page 1 when page size changes
+      this.currentPage = 1;
+      // Re-run search if there's a query
+      if (this.searchQuery && this.searchQuery.trim().length > 0) {
+        this.performSearch();
+      }
     }
   }
 

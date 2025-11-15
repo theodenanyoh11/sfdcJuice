@@ -769,14 +769,57 @@ public class HelpjuiceApiService {
         }
       }
 
-      // Map last_published_date
+      // Map dates - try multiple fields and formats
+      DateTime parsedPublishedDate = null;
+      DateTime parsedLastModifiedDate = null;
+      
+      // Try updated_at first (most accurate for lastModifiedDate, ISO 8601 format)
+      if (searchMap.containsKey('updated_at')) {
+        String updatedAtStr = String.valueOf(searchMap.get('updated_at'));
+        if (String.isNotBlank(updatedAtStr) && !updatedAtStr.equals('null')) {
+          parsedLastModifiedDate = parseDateTime(updatedAtStr);
+          if (parsedLastModifiedDate != null) {
+            article.lastModifiedDate = parsedLastModifiedDate;
+          }
+        }
+      }
+      
+      // Try created_at for publishedDate (ISO 8601 format)
+      if (searchMap.containsKey('created_at')) {
+        String createdAtStr = String.valueOf(searchMap.get('created_at'));
+        if (String.isNotBlank(createdAtStr) && !createdAtStr.equals('null')) {
+          parsedPublishedDate = parseDateTime(createdAtStr);
+          if (parsedPublishedDate != null) {
+            article.publishedDate = parsedPublishedDate;
+            // Use created_at as fallback for lastModifiedDate if updated_at wasn't available
+            if (parsedLastModifiedDate == null) {
+              article.lastModifiedDate = parsedPublishedDate;
+            }
+          }
+        }
+      }
+      
+      // Try last_published_date (formatted string like "July 30th, 2020")
       if (searchMap.containsKey('last_published_date')) {
         String dateStr = String.valueOf(searchMap.get('last_published_date'));
-        // Try to parse date (format: "July 30th, 2020")
-        try {
-          article.publishedDate = parseDateString(dateStr);
-        } catch (Exception e) {
-          System.debug(LoggingLevel.WARN, 'Could not parse last_published_date: ' + dateStr);
+        if (String.isNotBlank(dateStr) && !dateStr.equals('null')) {
+          try {
+            DateTime parsedDate = parseDateString(dateStr);
+            if (parsedDate != null) {
+              if (parsedPublishedDate == null) {
+                article.publishedDate = parsedDate;
+              }
+              // Use last_published_date for lastModifiedDate if we don't have updated_at or created_at
+              if (parsedLastModifiedDate == null) {
+                article.lastModifiedDate = parsedDate;
+              }
+            }
+          } catch (Exception e) {
+            System.debug(
+              LoggingLevel.WARN,
+              'HelpjuiceApiService: Could not parse last_published_date: ' + dateStr + ' - ' + e.getMessage()
+            );
+          }
         }
       }
 
@@ -1182,8 +1225,8 @@ public class HelpjuiceApiService {
   }
 
   /**
-   * @description Parses date string from Helpjuice search results (e.g., "July 30th, 2020")
-   * @param dateStr Date string in format like "July 30th, 2020"
+   * @description Parses date string from Helpjuice search results (e.g., "July 30th, 2020" or "May 3rd, 2024")
+   * @param dateStr Date string in format like "July 30th, 2020" or "May 3rd, 2024"
    * @return DateTime Parsed DateTime object, or null if parsing fails
    */
   private static DateTime parseDateString(String dateStr) {
@@ -1192,16 +1235,61 @@ public class HelpjuiceApiService {
     }
 
     try {
-      // Helpjuice search results use format like "July 30th, 2020"
+      // Helpjuice search results use format like "July 30th, 2020" or "May 3rd, 2024"
       // Remove ordinal suffixes (st, nd, rd, th)
-      String cleaned = dateStr.replaceAll('(\\d+)(st|nd|rd|th)', '$1');
-      // Try to parse as date
-      // Note: This is a simplified parser - may need adjustment based on actual format
-      return DateTime.parse(cleaned);
+      String cleaned = dateStr.replaceAll('(\\d+)(st|nd|rd|th)', '$1').trim();
+      
+      // Map month names to numbers
+      Map<String, Integer> monthMap = new Map<String, Integer>{
+        'January' => 1, 'February' => 2, 'March' => 3, 'April' => 4,
+        'May' => 5, 'June' => 6, 'July' => 7, 'August' => 8,
+        'September' => 9, 'October' => 10, 'November' => 11, 'December' => 12
+      };
+      
+      // Parse format: "Month Day, Year" (e.g., "May 3, 2024")
+      // Use string manipulation instead of regex for better reliability
+      cleaned = cleaned.trim();
+      
+      // Find the comma that separates day and year
+      Integer commaIndex = cleaned.indexOf(',');
+      if (commaIndex == -1) {
+        return null;
+      }
+      
+      // Extract year (after comma)
+      String yearPart = cleaned.substring(commaIndex + 1).trim();
+      if (yearPart.length() != 4) {
+        return null;
+      }
+      Integer year = Integer.valueOf(yearPart);
+      
+      // Extract month and day (before comma)
+      String monthDayPart = cleaned.substring(0, commaIndex).trim();
+      
+      // Find the last space to separate month and day
+      Integer lastSpaceIndex = monthDayPart.lastIndexOf(' ');
+      if (lastSpaceIndex == -1) {
+        return null;
+      }
+      
+      // Extract month name
+      String monthName = monthDayPart.substring(0, lastSpaceIndex).trim();
+      Integer monthNum = monthMap.get(monthName);
+      if (monthNum == null) {
+        return null;
+      }
+      
+      // Extract day
+      String dayStr = monthDayPart.substring(lastSpaceIndex + 1).trim();
+      Integer day = Integer.valueOf(dayStr);
+      
+      // Create DateTime directly (more reliable than parsing string)
+      return DateTime.newInstance(year, monthNum, day, 0, 0, 0);
+      
     } catch (Exception e) {
       System.debug(
         LoggingLevel.WARN,
-        'Could not parse date string: ' + dateStr + ' - ' + e.getMessage()
+        'HelpjuiceApiService: Could not parse date string: ' + dateStr + ' - ' + e.getMessage()
       );
       return null;
     }

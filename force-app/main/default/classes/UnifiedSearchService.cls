@@ -21,27 +21,41 @@ public class UnifiedSearchService {
     }
 
     try {
+      // Use the requested maxResults if provided, otherwise use default or config value
       Integer maxResults = request.maxResults != null
         ? request.maxResults
         : 25;
 
-      sfdcJuice_Config__mdt config = sfdcJuiceConfigService.getActiveConfig();
-      if (config != null && config.Max_Results_Per_Source__c != null) {
-        maxResults = Integer.valueOf(config.Max_Results_Per_Source__c);
+      // Only use Custom Metadata as fallback if maxResults was not provided in request
+      if (request.maxResults == null) {
+        sfdcJuice_Config__mdt config = sfdcJuiceConfigService.getActiveConfig();
+        if (config != null && config.Max_Results_Per_Source__c != null) {
+          maxResults = Integer.valueOf(config.Max_Results_Per_Source__c);
+        }
+      }
+
+      // Calculate how many results we need from each service
+      // Request enough to cover the current page and future pages (up to 10 pages, capped at 1000)
+      // This ensures we have enough results to paginate after combining and filtering
+      Integer currentPage = request.pageNumber != null ? request.pageNumber : 1;
+      Integer resultsNeeded = maxResults * Math.max(currentPage, 10);
+      if (resultsNeeded > 1000) {
+        resultsNeeded = 1000; // Cap at 1000 to avoid performance issues
       }
 
       List<UnifiedArticle> helpjuiceArticles = new List<UnifiedArticle>();
       List<UnifiedArticle> salesforceArticles = new List<UnifiedArticle>();
 
       // Search Helpjuice if source filter allows
+      // Always request page 1 with enough results to cover pagination after combining
       if (
         request.sourceFilter == 'All' || request.sourceFilter == 'Helpjuice'
       ) {
         try {
           helpjuiceArticles = HelpjuiceApiService.searchArticles(
             request.searchQuery,
-            maxResults,
-            request.pageNumber
+            resultsNeeded,
+            1 // Always request page 1, we'll paginate after combining
           );
           System.debug(
             LoggingLevel.INFO,
@@ -97,6 +111,7 @@ public class UnifiedSearchService {
       }
 
       // Search Salesforce Knowledge if source filter allows
+      // Always request page 1 with enough results to cover pagination after combining
       if (
         request.sourceFilter == 'All' ||
         request.sourceFilter == 'Salesforce'
@@ -104,8 +119,8 @@ public class UnifiedSearchService {
         try {
           salesforceArticles = SalesforceKnowledgeService.searchArticles(
             request.searchQuery,
-            maxResults,
-            request.pageNumber
+            resultsNeeded,
+            1 // Always request page 1, we'll paginate after combining
           );
         } catch (Exception e) {
           System.debug(
@@ -127,9 +142,48 @@ public class UnifiedSearchService {
       // For now, sort by last modified date (most recent first)
       allArticles.sort(new ArticleDateComparator());
 
-      response.articles = allArticles;
-      response.totalCount = allArticles.size();
-      response.hasMore = allArticles.size() >= maxResults;
+      // Store total count before pagination
+      Integer totalCountBeforePagination = allArticles.size();
+
+      // Apply pagination - limit results to maxResults per page
+      Integer startIndex = (response.pageNumber - 1) * maxResults;
+      Integer endIndex = startIndex + maxResults;
+      
+      System.debug(
+        LoggingLevel.INFO,
+        'UnifiedSearchService: Pagination - pageNumber: ' +
+        response.pageNumber +
+        ', maxResults: ' +
+        maxResults +
+        ', totalArticles: ' +
+        totalCountBeforePagination +
+        ', startIndex: ' +
+        startIndex +
+        ', endIndex: ' +
+        endIndex
+      );
+      
+      if (startIndex < allArticles.size()) {
+        if (endIndex > allArticles.size()) {
+          endIndex = allArticles.size();
+        }
+        response.articles = new List<UnifiedArticle>();
+        for (Integer i = startIndex; i < endIndex; i++) {
+          response.articles.add(allArticles[i]);
+        }
+      } else {
+        response.articles = new List<UnifiedArticle>();
+      }
+
+      System.debug(
+        LoggingLevel.INFO,
+        'UnifiedSearchService: Returning ' +
+        response.articles.size() +
+        ' articles after pagination'
+      );
+
+      response.totalCount = totalCountBeforePagination;
+      response.hasMore = endIndex < totalCountBeforePagination;
 
       // Calculate total pages (simplified - assumes maxResults per page)
       if (maxResults > 0) {
@@ -232,21 +286,34 @@ public class UnifiedSearchService {
         }
       }
 
-      // Filter by date range
-      if (request.dateFrom != null) {
-        if (
-          article.publishedDate == null ||
-          article.publishedDate < request.dateFrom
-        ) {
+      // Filter by date range (using lastModifiedDate)
+      // Note: Articles with null lastModifiedDate are included (we can't determine if they're in range)
+      if (request.dateFrom != null && article.lastModifiedDate != null) {
+        // Set dateFrom to start of day (00:00:00) for inclusive comparison
+        DateTime dateFromStart = DateTime.newInstance(
+          request.dateFrom.year(),
+          request.dateFrom.month(),
+          request.dateFrom.day(),
+          0,
+          0,
+          0
+        );
+        if (article.lastModifiedDate < dateFromStart) {
           include = false;
         }
       }
 
-      if (request.dateTo != null) {
-        if (
-          article.publishedDate == null ||
-          article.publishedDate > request.dateTo
-        ) {
+      if (request.dateTo != null && article.lastModifiedDate != null) {
+        // Set dateTo to end of day (23:59:59) for inclusive comparison
+        DateTime dateToEnd = DateTime.newInstance(
+          request.dateTo.year(),
+          request.dateTo.month(),
+          request.dateTo.day(),
+          23,
+          59,
+          59
+        );
+        if (article.lastModifiedDate > dateToEnd) {
           include = false;
         }
       }

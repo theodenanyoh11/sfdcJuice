@@ -15,6 +15,20 @@ sfdcJuice lets your support team search both Helpjuice knowledge base and Salesf
 
 ---
 
+## 📸 Screenshots
+
+### Unified Search Results
+![Unified Knowledge Search Results](images/unified-search-results.png)
+
+*Search results showing articles from both Helpjuice and Salesforce Knowledge with filtering options*
+
+### Popular Articles View
+![Popular Articles and Categories](images/popular-articles.png)
+
+*Browse popular articles and categories in a clean, organized grid layout*
+
+---
+
 ## 📦 Installation
 
 ### Prerequisites
@@ -28,7 +42,7 @@ Before you start, make sure you have:
 
 Click the button below to install sfdcJuice in your Salesforce org:
 
-**[👉 Click here to install sfdcJuice](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tgK0000007HybQAE)**
+[<img src="images/deploy-button.png" alt="Deploy to Salesforce" width="200" height="50">](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tgK0000007IRdQAM)
 
 **What happens:**
 1. Click the button above
