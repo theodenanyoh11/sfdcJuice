@@ -31,6 +31,11 @@ export default class UnifiedSearch extends LightningElement {
   @track selectedArticle = null;
   @track showArticleModal = false;
   @track isLoadingArticle = false;
+  @track filtersExpanded = false; // Start collapsed by default
+  
+  // Filter menu state
+  @track showFilterMenu = false;
+  filterMenuToggleTime = 0; // Track when filter menu was toggled to prevent immediate closure
 
   // Popular articles and categories (shown when no search query)
   @track popularArticles = [];
@@ -82,6 +87,126 @@ export default class UnifiedSearch extends LightningElement {
     return !this.canGoNext;
   }
 
+  get filtersIconName() {
+    return this.filtersExpanded ? 'utility:chevronup' : 'utility:chevrondown';
+  }
+
+  get filtersIconAlt() {
+    return this.filtersExpanded ? 'Collapse filters' : 'Expand filters';
+  }
+
+  get filtersToggleVariant() {
+    return this.hasFilters ? 'brand' : 'neutral';
+  }
+
+  get hasSourceFilter() {
+    return this.sourceFilter && this.sourceFilter !== 'All';
+  }
+
+  get sourceFilterLabel() {
+    const option = this.sourceOptions.find(opt => opt.value === this.sourceFilter);
+    return option ? option.label : this.sourceFilter;
+  }
+
+  get hasDateFilter() {
+    return this.dateFrom || this.dateTo;
+  }
+
+  get dateFilterLabel() {
+    if (this.dateFrom && this.dateTo) {
+      return `${this.formatDateShort(this.dateFrom)} - ${this.formatDateShort(this.dateTo)}`;
+    } else if (this.dateFrom) {
+      return `From ${this.formatDateShort(this.dateFrom)}`;
+    } else if (this.dateTo) {
+      return `Until ${this.formatDateShort(this.dateTo)}`;
+    }
+    return '';
+  }
+
+  get hasActiveFiltersOrQuery() {
+    return this.hasFilters || (this.searchQuery && this.searchQuery.trim().length > 0);
+  }
+
+  get searchPlaceholder() {
+    if (this.hasFilters) {
+      return 'Search articles...';
+    }
+    return 'Search articles...';
+  }
+
+  get pluralCount() {
+    return this.totalCount !== 1 ? 's' : '';
+  }
+
+  handleToggleFilters() {
+    this.filtersExpanded = !this.filtersExpanded;
+  }
+
+  handleToggleFilterMenu(event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.filterMenuToggleTime = Date.now();
+    this.showFilterMenu = !this.showFilterMenu;
+  }
+
+  handleCloseDrawer(event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.showFilterMenu = false;
+  }
+
+
+  handleRemoveSourceFilter() {
+    this.sourceFilter = 'All';
+    if (this.searchQuery && this.searchQuery.trim().length > 0) {
+      this.currentPage = 1;
+      this.performSearch();
+    }
+  }
+
+  handleRemoveDateFilter() {
+    this.dateFrom = null;
+    this.dateTo = null;
+    if (this.searchQuery && this.searchQuery.trim().length > 0) {
+      this.currentPage = 1;
+      this.performSearch();
+    }
+  }
+
+  handleClearAll() {
+    this.searchQuery = '';
+    this.sourceFilter = 'All';
+    this.selectedTags = [];
+    this.selectedCategories = [];
+    this.dateFrom = null;
+    this.dateTo = null;
+    this.articles = [];
+    this.hasError = false;
+    this.errorMessage = '';
+    this.showFilterMenu = false;
+    this.loadPopularContent();
+  }
+
+  handleKeyDown(event) {
+    // Keyboard shortcut: "/" to open filter menu (only when input is empty)
+    if (event.key === '/' && !this.showFilterMenu) {
+      const target = event.target;
+      if (target && target.tagName === 'INPUT' && (!target.value || target.value.trim() === '')) {
+        event.preventDefault();
+        this.handleToggleFilterMenu();
+      }
+    }
+    // Close filter menu on Escape
+    if (event.key === 'Escape' && this.showFilterMenu) {
+      console.log('[Filter Panel] Close panel via ESC key:', {
+        timestamp: new Date().toISOString()
+      });
+      this.showFilterMenu = false;
+    }
+  }
+
   handleSearchInputChange(event) {
     this.searchQuery = event.target.value;
     // If search query is cleared, reload popular content
@@ -94,7 +219,9 @@ export default class UnifiedSearch extends LightningElement {
   }
 
   handleSourceFilterChange(event) {
-    this.sourceFilter = event.detail.value;
+    const newSource = event.detail.value;
+    this.sourceFilter = newSource;
+    // Auto-search if we have a search query
     if (this.searchQuery && this.searchQuery.trim().length > 0) {
       this.currentPage = 1;
       this.performSearch();
@@ -119,6 +246,115 @@ export default class UnifiedSearch extends LightningElement {
   connectedCallback() {
     // Load popular articles and categories when component loads (no search query)
     this.loadPopularContent();
+    
+    // Add click outside listener to close filter drawer
+    this.handleClickOutside = (event) => {
+      if (!this.showFilterMenu) return;
+      
+      // Ignore clicks immediately after toggling (within 300ms)
+      const timeSinceToggle = Date.now() - this.filterMenuToggleTime;
+      if (timeSinceToggle < 300) {
+        return;
+      }
+      
+      // Get the panel and backdrop elements
+      const filterPanel = this.template.querySelector('.filter-panel');
+      const backdrop = this.template.querySelector('.slds-panel__backdrop');
+      
+      if (!filterPanel) {
+        this.showFilterMenu = false;
+        return;
+      }
+      
+      // Check if click is on backdrop
+      if (backdrop && (event.target === backdrop || backdrop.contains(event.target))) {
+        // Check if any combobox dropdown is open - if so, don't close
+        const openDropdown = document.querySelector('.slds-dropdown:not([style*="display: none"]), .slds-listbox:not([style*="display: none"])');
+        if (!openDropdown) {
+          this.showFilterMenu = false;
+        }
+        return;
+      }
+      
+      // Check if click is on filter button - let button handler manage it
+      const path = event.composedPath ? event.composedPath() : [event.target];
+      const isFilterButton = path.some(node => {
+        if (!node || typeof node.closest !== 'function') return false;
+        return node.closest('.filter-menu-button') || 
+               node.closest('[data-filter-button="true"]') ||
+               (node.classList && node.classList.contains('filter-menu-button'));
+      });
+      
+      if (isFilterButton) {
+        return;
+      }
+      
+      // Check if click is inside panel or any of its child elements
+      const isInsidePanel = path.some(node => {
+        if (!node || node.nodeType !== 1) return false;
+        
+        // Direct match
+        if (node === filterPanel) return true;
+        
+        // Check if panel contains this node
+        try {
+          if (filterPanel.contains(node)) return true;
+        } catch (e) {
+          // Ignore errors
+        }
+        
+        // Check shadow root hosts
+        if (node.getRootNode) {
+          try {
+            const root = node.getRootNode();
+            if (root instanceof ShadowRoot && root.host) {
+              const host = root.host;
+              if (filterPanel.contains(host)) return true;
+            }
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+        
+        // Use closest
+        if (node.closest && node.closest('.filter-panel')) return true;
+        
+        return false;
+      });
+      
+      // Check if any combobox dropdown is currently open
+      const hasOpenDropdown = document.querySelector('.slds-dropdown:not([style*="display: none"]), .slds-listbox:not([style*="display: none"])');
+      
+      if (isInsidePanel || hasOpenDropdown) {
+        return; // Keep panel open
+      }
+      
+      // Click outside panel - close it
+      this.showFilterMenu = false;
+    };
+    
+    // Add ESC key handler
+    this.handleEscapeKey = (event) => {
+      if (event.key === 'Escape' && this.showFilterMenu) {
+        this.showFilterMenu = false;
+      }
+    };
+    
+    // Use capture phase and setTimeout to avoid immediate closure when clicking the button
+    setTimeout(() => {
+      document.addEventListener('click', this.handleClickOutside, true);
+      document.addEventListener('keydown', this.handleEscapeKey, true);
+    }, 0);
+  }
+
+  disconnectedCallback() {
+    // Remove event listeners
+    if (this.handleClickOutside) {
+      document.removeEventListener('click', this.handleClickOutside, true);
+    }
+    if (this.handleEscapeKey) {
+      document.removeEventListener('keydown', this.handleEscapeKey, true);
+    }
   }
 
   async loadPopularContent() {
@@ -175,6 +411,11 @@ export default class UnifiedSearch extends LightningElement {
         this.articles = response.articles || [];
         // Format dates for display
         this.articles = this.formatArticleDates(this.articles);
+        // Debug: Log first article to check for URL
+        if (this.articles.length > 0) {
+          console.log('First article:', this.articles[0]);
+          console.log('Article URL:', this.articles[0].url);
+        }
         this.totalCount = response.totalCount || 0;
         this.currentPage = response.pageNumber || 1;
         this.totalPages = response.totalPages || 1;
@@ -231,25 +472,70 @@ export default class UnifiedSearch extends LightningElement {
       .map((cat) => ({ label: cat, value: cat }));
   }
 
-  handleTagFilterChange(event) {
-    this.selectedTags = event.detail.value || [];
-    if (this.searchQuery) {
-      this.currentPage = 1;
-      this.performSearch();
+  handleTagFilterAdd(event) {
+    const value = event.detail.value;
+    if (value && !this.selectedTags.includes(value)) {
+      this.selectedTags = [...this.selectedTags, value];
+      // Reset combobox value
+      setTimeout(() => {
+        const combobox = event.target;
+        if (combobox && combobox.value !== undefined) {
+          combobox.value = '';
+        }
+      }, 0);
+      // Auto-search if we have a search query
+      if (this.searchQuery && this.searchQuery.trim().length > 0) {
+        this.currentPage = 1;
+        this.performSearch();
+      }
     }
   }
 
-  handleCategoryFilterChange(event) {
-    this.selectedCategories = event.detail.value || [];
-    if (this.searchQuery) {
-      this.currentPage = 1;
-      this.performSearch();
+  handleCategoryFilterAdd(event) {
+    const value = event.detail.value;
+    if (value && !this.selectedCategories.includes(value)) {
+      this.selectedCategories = [...this.selectedCategories, value];
+      // Reset combobox value
+      setTimeout(() => {
+        const combobox = event.target;
+        if (combobox && combobox.value !== undefined) {
+          combobox.value = '';
+        }
+      }, 0);
+      // Auto-search if we have a search query
+      if (this.searchQuery && this.searchQuery.trim().length > 0) {
+        this.currentPage = 1;
+        this.performSearch();
+      }
+    }
+  }
+
+  handleRemoveTag(event) {
+    const tagToRemove = event.currentTarget.dataset.tag || event.target.closest('[data-tag]')?.dataset.tag;
+    if (tagToRemove) {
+      this.selectedTags = this.selectedTags.filter(tag => tag !== tagToRemove);
+      if (this.searchQuery) {
+        this.currentPage = 1;
+        this.performSearch();
+      }
+    }
+  }
+
+  handleRemoveCategory(event) {
+    const categoryToRemove = event.currentTarget.dataset.category || event.target.closest('[data-category]')?.dataset.category;
+    if (categoryToRemove) {
+      this.selectedCategories = this.selectedCategories.filter(cat => cat !== categoryToRemove);
+      if (this.searchQuery) {
+        this.currentPage = 1;
+        this.performSearch();
+      }
     }
   }
 
   handleDateFromChange(event) {
     this.dateFrom = event.detail.value;
-    if (this.searchQuery) {
+    // Auto-search if we have a search query
+    if (this.searchQuery && this.searchQuery.trim().length > 0) {
       this.currentPage = 1;
       this.performSearch();
     }
@@ -257,7 +543,8 @@ export default class UnifiedSearch extends LightningElement {
 
   handleDateToChange(event) {
     this.dateTo = event.detail.value;
-    if (this.searchQuery) {
+    // Auto-search if we have a search query
+    if (this.searchQuery && this.searchQuery.trim().length > 0) {
       this.currentPage = 1;
       this.performSearch();
     }
@@ -450,6 +737,12 @@ export default class UnifiedSearch extends LightningElement {
     return date.toLocaleDateString();
   }
 
+  formatDateShort(dateValue) {
+    if (!dateValue) return '';
+    const date = new Date(dateValue);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
   formatArticleDates(articles) {
     return articles.map((article) => {
       return {
@@ -461,4 +754,6 @@ export default class UnifiedSearch extends LightningElement {
     });
   }
 }
+
+
 

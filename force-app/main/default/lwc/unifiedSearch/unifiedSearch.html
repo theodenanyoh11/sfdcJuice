@@ -1,49 +1,117 @@
 <template>
   <div class="slds-p-around_large">
-    <!-- Header with Large Search -->
+    <!-- Header -->
     <div class="slds-m-bottom_x-large">
       <div class="slds-text-heading_large slds-m-bottom_medium">
         Unified Knowledge Search
       </div>
-      <div class="slds-grid slds-gutters slds-grid_align-center">
-        <div class="slds-col slds-size_1-of-1 slds-large-size_8-of-12">
-          <div class="modern-search-container">
-            <lightning-icon
-              icon-name="utility:search"
-              alternative-text="Search"
-              class="search-icon"
-              size="small"
-            ></lightning-icon>
-            <lightning-input
-              type="text"
-              label="Search Articles"
-              value={searchQuery}
-              onchange={handleSearchInputChange}
-              onkeypress={handleKeyPress}
-              placeholder="Search articles..."
-              class="modern-search-input"
-              variant="label-hidden"
-            >
-            </lightning-input>
+      
+      <!-- Unified Search Bar with Inline Filter Chips -->
+      <div class="slds-m-bottom_medium search-bar-container">
+        <div class="unified-search-bar">
+          <!-- Search Icon -->
+          <lightning-icon
+            icon-name="utility:search"
+            alternative-text="Search"
+            class="slds-m-left_small search-icon-left"
+            size="small"
+          ></lightning-icon>
+          
+          <!-- Search Input -->
+          <input
+            type="text"
+            class="slds-input search-input-text"
+            placeholder={searchPlaceholder}
+            value={searchQuery}
+            oninput={handleSearchInputChange}
+            onkeypress={handleKeyPress}
+            onkeydown={handleKeyDown}
+          />
+          
+          <!-- Filter Chips Container -->
+          <div class="filter-chips-container">
+            <!-- Source Filter Chip -->
+            <template if:true={hasSourceFilter}>
+              <span class="slds-pill filter-chip filter-chip-source" data-filter-type="source">
+                <span class="slds-pill__label">
+                  <span class="filter-chip-type">SOURCE:</span>
+                  <span class="filter-chip-value">{sourceFilterLabel}</span>
+                </span>
+                <span class="slds-pill__remove" role="button" tabindex="0" onclick={handleRemoveSourceFilter}>
+                  <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
+                </span>
+              </span>
+            </template>
+            
+            <!-- Category Filter Chips -->
+            <template for:each={selectedCategories} for:item="category">
+              <span key={category} class="slds-pill filter-chip filter-chip-category" data-category={category}>
+                <span class="slds-pill__label">
+                  <span class="filter-chip-type">CATEGORY:</span>
+                  <span class="filter-chip-value">{category}</span>
+                </span>
+                <span class="slds-pill__remove" role="button" tabindex="0" data-category={category} onclick={handleRemoveCategory}>
+                  <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
+                </span>
+              </span>
+            </template>
+            
+            <!-- Tag Filter Chips -->
+            <template for:each={selectedTags} for:item="tag">
+              <span key={tag} class="slds-pill filter-chip filter-chip-tag" data-tag={tag}>
+                <span class="slds-pill__label">
+                  <span class="filter-chip-type">TAG:</span>
+                  <span class="filter-chip-value">{tag}</span>
+                </span>
+                <span class="slds-pill__remove" role="button" tabindex="0" data-tag={tag} onclick={handleRemoveTag}>
+                  <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
+                </span>
+              </span>
+            </template>
+            
+            <!-- Date Filter Chip -->
+            <template if:true={hasDateFilter}>
+              <span class="slds-pill filter-chip filter-chip-date" data-filter-type="date">
+                <span class="slds-pill__label">
+                  <span class="filter-chip-type">DATE:</span>
+                  <span class="filter-chip-value">{dateFilterLabel}</span>
+                </span>
+                <span class="slds-pill__remove" role="button" tabindex="0" onclick={handleRemoveDateFilter}>
+                  <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
+                </span>
+              </span>
+            </template>
           </div>
-        </div>
-        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-12">
-          <lightning-combobox
-            label="Source"
-            value={sourceFilter}
-            options={sourceOptions}
-            onchange={handleSourceFilterChange}
-            class="source-filter"
-            variant="label-hidden"
-            placeholder="All Sources"
-          ></lightning-combobox>
-        </div>
-        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-12">
+          
+          <!-- Clear Button -->
+          <template if:true={hasActiveFiltersOrQuery}>
+            <lightning-button-icon
+              icon-name="utility:clear"
+              alternative-text="Clear all"
+              title="Clear all"
+              onclick={handleClearAll}
+              class="clear-button"
+              variant="border-filled"
+            ></lightning-button-icon>
+          </template>
+          
+          <!-- Filter Menu Button -->
+          <lightning-button-icon
+            icon-name="utility:filterList"
+            alternative-text="Add filters"
+            title="Add filters"
+            onclick={handleToggleFilterMenu}
+            class="filter-menu-button"
+            variant="border-filled"
+            data-filter-button="true"
+          ></lightning-button-icon>
+          
+          <!-- Search Button -->
           <lightning-button
             label="Search"
             variant="brand"
             onclick={handleSearch}
-            class="slds-button_stretch search-button"
+            class="search-button-right"
             icon-name="utility:search"
             icon-position="left"
           ></lightning-button>
@@ -51,75 +119,8 @@
       </div>
     </div>
 
-    <!-- Main Content Area with Sidebar -->
-    <div class="slds-grid slds-gutters">
-      <!-- Left Sidebar - Filters -->
-      <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-12">
-        <div class="slds-box slds-theme_shade sidebar-filters">
-          <div class="slds-text-heading_small slds-m-bottom_medium">
-            Filters
-          </div>
-
-          <!-- Clear Filters Button -->
-          <template if:true={hasFilters}>
-            <div class="slds-m-bottom_medium">
-              <lightning-button
-                label="Clear All Filters"
-                variant="neutral"
-                onclick={handleClearFilters}
-                class="slds-button_stretch"
-              ></lightning-button>
-            </div>
-          </template>
-
-          <!-- Tags Filter -->
-          <div class="slds-m-bottom_medium">
-            <lightning-dual-listbox
-              label="Tags"
-              source-label="Available"
-              selected-label="Selected"
-              options={availableTags}
-              value={selectedTags}
-              onchange={handleTagFilterChange}
-              size="5"
-            ></lightning-dual-listbox>
-          </div>
-
-          <!-- Categories Filter -->
-          <div class="slds-m-bottom_medium">
-            <lightning-dual-listbox
-              label="Categories"
-              source-label="Available"
-              selected-label="Selected"
-              options={availableCategories}
-              value={selectedCategories}
-              onchange={handleCategoryFilterChange}
-              size="5"
-            ></lightning-dual-listbox>
-          </div>
-
-          <!-- Date Range Filters -->
-          <div class="slds-m-bottom_medium">
-            <lightning-input
-              type="date"
-              label="Date From"
-              value={dateFrom}
-              onchange={handleDateFromChange}
-            ></lightning-input>
-          </div>
-          <div class="slds-m-bottom_medium">
-            <lightning-input
-              type="date"
-              label="Date To"
-              value={dateTo}
-              onchange={handleDateToChange}
-            ></lightning-input>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Content Area - Results -->
-      <div class="slds-col slds-size_1-of-1 slds-large-size_9-of-12">
+    <!-- Main Content Area - Full Width Results -->
+    <div>
         <!-- Loading Spinner -->
         <template if:true={isLoading}>
           <div class="slds-align_absolute-center slds-m-vertical_xx-large">
@@ -136,8 +137,8 @@
 
         <!-- Results Count -->
         <template if:true={hasResults}>
-          <div class="slds-text-heading_small slds-m-bottom_medium">
-            Found {totalCount} article(s)
+          <div class="slds-text-heading_small slds-m-bottom_medium result-count">
+            Found {totalCount} article{pluralCount}
           </div>
         </template>
 
@@ -149,13 +150,7 @@
                 key={article.id}
                 class="result-card"
               >
-                <div class="result-card-header">
-                  <lightning-badge
-                    label={article.source}
-                    class={article.badgeClass}
-                  ></lightning-badge>
-                </div>
-                <div class="result-card-body">
+                <div class="result-card-content">
                   <h3 class="result-card-title">
                     <a
                       href="javascript:void(0);"
@@ -168,17 +163,56 @@
                     </a>
                   </h3>
                   <p class="result-card-snippet">{article.snippet}</p>
-                  <div class="result-card-footer">
-                    <a
-                      href="javascript:void(0);"
-                      data-id={article.id}
-                      data-source={article.source}
-                      onclick={handleViewArticle}
-                      class="read-more-link"
-                    >
-                      Read more
-                    </a>
+                  <div class="result-card-meta">
+                    <div class="result-card-badges">
+                      <lightning-badge
+                        label={article.source}
+                        class={article.badgeClass}
+                      ></lightning-badge>
+                      <template if:true={article.categories}>
+                        <template for:each={article.categories} for:item="category">
+                          <lightning-badge
+                            key={category}
+                            label={category}
+                            class="slds-badge category-badge"
+                          ></lightning-badge>
+                        </template>
+                      </template>
+                      <template if:true={article.tags}>
+                        <template for:each={article.tags} for:item="tag">
+                          <span key={tag} class="slds-badge tag-pill">
+                            {tag}
+                          </span>
+                        </template>
+                      </template>
+                    </div>
+                    <div class="result-card-date">
+                      <span class="slds-text-body_small slds-text-color_weak">
+                        {article.formattedLastModifiedDate}
+                      </span>
+                    </div>
                   </div>
+                  <template if:true={article.url}>
+                    <div class="result-card-url">
+                      <a
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="result-url-link"
+                      >
+                        {article.url}
+                      </a>
+                      <lightning-button-icon
+                        icon-name="utility:copy"
+                        alternative-text="Copy link"
+                        title="Copy link"
+                        data-url={article.url}
+                        onclick={handleCopyLink}
+                        class="copy-link-icon"
+                        variant="border-filled"
+                      ></lightning-button-icon>
+                    </div>
+                  </template>
                 </div>
               </article>
             </template>
@@ -225,13 +259,7 @@
                     key={article.id}
                     class="result-card"
                   >
-                    <div class="result-card-header">
-                      <lightning-badge
-                        label={article.source}
-                        class={article.badgeClass}
-                      ></lightning-badge>
-                    </div>
-                    <div class="result-card-body">
+                    <div class="result-card-content">
                       <h3 class="result-card-title">
                         <a
                           href="javascript:void(0);"
@@ -244,17 +272,56 @@
                         </a>
                       </h3>
                       <p class="result-card-snippet">{article.snippet}</p>
-                      <div class="result-card-footer">
-                        <a
-                          href="javascript:void(0);"
-                          data-id={article.id}
-                          data-source={article.source}
-                          onclick={handleViewArticle}
-                          class="read-more-link"
-                        >
-                          Read more
-                        </a>
+                      <div class="result-card-meta">
+                        <div class="result-card-badges">
+                          <lightning-badge
+                            label={article.source}
+                            class={article.badgeClass}
+                          ></lightning-badge>
+                          <template if:true={article.categories}>
+                            <template for:each={article.categories} for:item="category">
+                              <lightning-badge
+                                key={category}
+                                label={category}
+                                class="slds-badge category-badge"
+                              ></lightning-badge>
+                            </template>
+                          </template>
+                          <template if:true={article.tags}>
+                            <template for:each={article.tags} for:item="tag">
+                              <span key={tag} class="slds-badge tag-pill">
+                                {tag}
+                              </span>
+                            </template>
+                          </template>
+                        </div>
+                        <div class="result-card-date">
+                          <span class="slds-text-body_small slds-text-color_weak">
+                            {article.formattedLastModifiedDate}
+                          </span>
+                        </div>
                       </div>
+                      <template if:true={article.url}>
+                        <div class="result-card-url">
+                          <a
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="result-url-link"
+                          >
+                            {article.url}
+                          </a>
+                          <lightning-button-icon
+                            icon-name="utility:copy"
+                            alternative-text="Copy link"
+                            title="Copy link"
+                            data-url={article.url}
+                            onclick={handleCopyLink}
+                            class="copy-link-icon"
+                            variant="border-filled"
+                          ></lightning-button-icon>
+                        </div>
+                      </template>
                     </div>
                   </article>
                 </template>
@@ -317,12 +384,12 @@
             <template if:false={showPopularArticles}>
               <template if:false={showCategories}>
                 <template if:false={isLoadingPopular}>
-                  <div class="slds-box slds-theme_shade slds-align_absolute-center slds-m-vertical_xx-large">
+                  <div class="slds-box slds-theme_shade slds-align_absolute-center slds-m-vertical_xx-large empty-state">
                     <div class="slds-text-heading_medium slds-m-bottom_small">
                       No articles found
                     </div>
                     <div class="slds-text-body_regular slds-text-color_weak">
-                      Try adjusting your search query or filters
+                      Try adjusting your search query or filters to find what you're looking for.
                     </div>
                   </div>
                 </template>
@@ -330,7 +397,6 @@
             </template>
           </template>
         </template>
-      </div>
     </div>
   </div>
 
@@ -341,5 +407,147 @@
       is-loading={isLoadingArticle}
       onclose={handleCloseModal}
     ></c-article-viewer>
+  </template>
+
+  <!-- Filter Panel - At root level for proper fixed positioning -->
+  <template if:true={showFilterMenu}>
+    <!-- Panel Backdrop -->
+    <div class="slds-panel__backdrop" onclick={handleCloseDrawer}></div>
+    
+    <!-- Filter Panel -->
+    <div class="slds-panel slds-panel_docked slds-panel_docked-right filter-panel" data-filter-drawer="true">
+      <div class="slds-panel__header">
+        <h2 class="slds-panel__header-title">
+          <span class="slds-text-heading_small">Filters</span>
+        </h2>
+        <div class="slds-panel__header-actions">
+          <lightning-button-icon
+            icon-name="utility:close"
+            alternative-text="Close panel"
+            title="Close panel"
+            onclick={handleCloseDrawer}
+            variant="border-filled"
+            class="slds-panel__close"
+          ></lightning-button-icon>
+        </div>
+      </div>
+      <div class="slds-panel__body">
+        <!-- Source Filter -->
+        <div class="slds-form-element slds-m-bottom_medium">
+          <lightning-combobox
+            label="Source"
+            value={sourceFilter}
+            options={sourceOptions}
+            onchange={handleSourceFilterChange}
+            placeholder="Select Source"
+          ></lightning-combobox>
+        </div>
+        
+        <!-- Category Filter -->
+        <div class="slds-form-element slds-m-bottom_medium">
+          <template if:true={availableCategories.length}>
+            <lightning-combobox
+              label="Category"
+              value=""
+              options={availableCategories}
+              onchange={handleCategoryFilterAdd}
+              placeholder="Select Category"
+            ></lightning-combobox>
+          </template>
+          <template if:false={availableCategories.length}>
+            <lightning-input
+              label="Category"
+              value=""
+              placeholder="No categories available. Perform a search first."
+              disabled
+            ></lightning-input>
+          </template>
+          <!-- Selected Category Chips -->
+          <template if:true={selectedCategories.length}>
+            <div class="slds-m-top_small">
+              <template for:each={selectedCategories} for:item="category">
+                <span key={category} class="slds-pill filter-chip filter-chip-category slds-m-right_xx-small slds-m-bottom_xx-small" data-category={category}>
+                  <span class="slds-pill__label">{category}</span>
+                  <span class="slds-pill__remove" role="button" tabindex="0" data-category={category} onclick={handleRemoveCategory}>
+                    <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
+                  </span>
+                </span>
+              </template>
+            </div>
+          </template>
+        </div>
+        
+        <!-- Tag Filter -->
+        <div class="slds-form-element slds-m-bottom_medium">
+          <template if:true={availableTags.length}>
+            <lightning-combobox
+              label="Tag"
+              value=""
+              options={availableTags}
+              onchange={handleTagFilterAdd}
+              placeholder="Select Tag"
+            ></lightning-combobox>
+          </template>
+          <template if:false={availableTags.length}>
+            <lightning-input
+              label="Tag"
+              value=""
+              placeholder="No tags available. Perform a search first."
+              disabled
+            ></lightning-input>
+          </template>
+          <!-- Selected Tag Chips -->
+          <template if:true={selectedTags.length}>
+            <div class="slds-m-top_small">
+              <template for:each={selectedTags} for:item="tag">
+                <span key={tag} class="slds-pill filter-chip filter-chip-tag slds-m-right_xx-small slds-m-bottom_xx-small" data-tag={tag}>
+                  <span class="slds-pill__label">{tag}</span>
+                  <span class="slds-pill__remove" role="button" tabindex="0" data-tag={tag} onclick={handleRemoveTag}>
+                    <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
+                  </span>
+                </span>
+              </template>
+            </div>
+          </template>
+        </div>
+        
+        <!-- Date Filter -->
+        <div class="slds-m-bottom_medium">
+          <div class="slds-text-heading_small slds-m-bottom_small">Date Range</div>
+          <div class="slds-grid slds-gutters">
+            <div class="slds-col">
+              <lightning-input
+                type="date"
+                label="From"
+                value={dateFrom}
+                onchange={handleDateFromChange}
+                placeholder="From"
+              ></lightning-input>
+            </div>
+            <div class="slds-col">
+              <lightning-input
+                type="date"
+                label="To"
+                value={dateTo}
+                onchange={handleDateToChange}
+                placeholder="To"
+              ></lightning-input>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template if:true={hasFilters}>
+        <div class="slds-panel__footer">
+          <lightning-button
+            label="Clear All Filters"
+            variant="neutral"
+            onclick={handleClearFilters}
+            icon-name="utility:clear"
+            icon-position="left"
+            class="slds-size_full"
+          ></lightning-button>
+        </div>
+      </template>
+    </div>
   </template>
 </template>
