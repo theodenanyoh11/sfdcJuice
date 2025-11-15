@@ -21,13 +21,17 @@ public class UnifiedSearchService {
     }
 
     try {
+      // Use the requested maxResults if provided, otherwise use default or config value
       Integer maxResults = request.maxResults != null
         ? request.maxResults
         : 25;
 
-      sfdcJuice_Config__mdt config = sfdcJuiceConfigService.getActiveConfig();
-      if (config != null && config.Max_Results_Per_Source__c != null) {
-        maxResults = Integer.valueOf(config.Max_Results_Per_Source__c);
+      // Only use Custom Metadata as fallback if maxResults was not provided in request
+      if (request.maxResults == null) {
+        sfdcJuice_Config__mdt config = sfdcJuiceConfigService.getActiveConfig();
+        if (config != null && config.Max_Results_Per_Source__c != null) {
+          maxResults = Integer.valueOf(config.Max_Results_Per_Source__c);
+        }
       }
 
       List<UnifiedArticle> helpjuiceArticles = new List<UnifiedArticle>();
@@ -127,9 +131,48 @@ public class UnifiedSearchService {
       // For now, sort by last modified date (most recent first)
       allArticles.sort(new ArticleDateComparator());
 
-      response.articles = allArticles;
-      response.totalCount = allArticles.size();
-      response.hasMore = allArticles.size() >= maxResults;
+      // Store total count before pagination
+      Integer totalCountBeforePagination = allArticles.size();
+
+      // Apply pagination - limit results to maxResults per page
+      Integer startIndex = (response.pageNumber - 1) * maxResults;
+      Integer endIndex = startIndex + maxResults;
+      
+      System.debug(
+        LoggingLevel.INFO,
+        'UnifiedSearchService: Pagination - pageNumber: ' +
+        response.pageNumber +
+        ', maxResults: ' +
+        maxResults +
+        ', totalArticles: ' +
+        totalCountBeforePagination +
+        ', startIndex: ' +
+        startIndex +
+        ', endIndex: ' +
+        endIndex
+      );
+      
+      if (startIndex < allArticles.size()) {
+        if (endIndex > allArticles.size()) {
+          endIndex = allArticles.size();
+        }
+        response.articles = new List<UnifiedArticle>();
+        for (Integer i = startIndex; i < endIndex; i++) {
+          response.articles.add(allArticles[i]);
+        }
+      } else {
+        response.articles = new List<UnifiedArticle>();
+      }
+
+      System.debug(
+        LoggingLevel.INFO,
+        'UnifiedSearchService: Returning ' +
+        response.articles.size() +
+        ' articles after pagination'
+      );
+
+      response.totalCount = totalCountBeforePagination;
+      response.hasMore = endIndex < totalCountBeforePagination;
 
       // Calculate total pages (simplified - assumes maxResults per page)
       if (maxResults > 0) {
@@ -232,20 +275,38 @@ public class UnifiedSearchService {
         }
       }
 
-      // Filter by date range
+      // Filter by date range (using lastModifiedDate)
       if (request.dateFrom != null) {
+        // Set dateFrom to start of day (00:00:00) for inclusive comparison
+        DateTime dateFromStart = DateTime.newInstance(
+          request.dateFrom.year(),
+          request.dateFrom.month(),
+          request.dateFrom.day(),
+          0,
+          0,
+          0
+        );
         if (
-          article.publishedDate == null ||
-          article.publishedDate < request.dateFrom
+          article.lastModifiedDate == null ||
+          article.lastModifiedDate < dateFromStart
         ) {
           include = false;
         }
       }
 
       if (request.dateTo != null) {
+        // Set dateTo to end of day (23:59:59) for inclusive comparison
+        DateTime dateToEnd = DateTime.newInstance(
+          request.dateTo.year(),
+          request.dateTo.month(),
+          request.dateTo.day(),
+          23,
+          59,
+          59
+        );
         if (
-          article.publishedDate == null ||
-          article.publishedDate > request.dateTo
+          article.lastModifiedDate == null ||
+          article.lastModifiedDate > dateToEnd
         ) {
           include = false;
         }

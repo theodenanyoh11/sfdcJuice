@@ -690,6 +690,8 @@ public class HelpjuiceApiService {
     article.source = 'Helpjuice';
 
     try {
+      // Debug: Log all available keys in search result
+      System.debug(LoggingLevel.INFO, 'HelpjuiceApiService: Mapping search result. Available keys: ' + searchMap.keySet());
       // Map ID
       if (searchMap.containsKey('id')) {
         article.id = String.valueOf(searchMap.get('id'));
@@ -769,15 +771,106 @@ public class HelpjuiceApiService {
         }
       }
 
-      // Map last_published_date
+      // Map dates - try multiple fields and formats
+      DateTime parsedPublishedDate = null;
+      DateTime parsedLastModifiedDate = null;
+      
+      // Debug: Log all date-related fields and their values
+      System.debug(LoggingLevel.INFO, 'HelpjuiceApiService: Checking date fields...');
+      System.debug(LoggingLevel.INFO, '  updated_at exists: ' + searchMap.containsKey('updated_at'));
+      System.debug(LoggingLevel.INFO, '  created_at exists: ' + searchMap.containsKey('created_at'));
+      System.debug(LoggingLevel.INFO, '  last_published_date exists: ' + searchMap.containsKey('last_published_date'));
+      
+      if (searchMap.containsKey('updated_at')) {
+        Object updatedAtObj = searchMap.get('updated_at');
+        System.debug(LoggingLevel.INFO, '  updated_at value: ' + updatedAtObj);
+      }
+      if (searchMap.containsKey('created_at')) {
+        Object createdAtObj = searchMap.get('created_at');
+        System.debug(LoggingLevel.INFO, '  created_at value: ' + createdAtObj);
+      }
+      if (searchMap.containsKey('last_published_date')) {
+        Object lastPubDateObj = searchMap.get('last_published_date');
+        System.debug(LoggingLevel.INFO, '  last_published_date value: ' + lastPubDateObj);
+      }
+      
+      // Try updated_at first (most accurate for lastModifiedDate, ISO 8601 format)
+      if (searchMap.containsKey('updated_at')) {
+        String updatedAtStr = String.valueOf(searchMap.get('updated_at'));
+        System.debug(LoggingLevel.INFO, '  Attempting to parse updated_at: "' + updatedAtStr + '"');
+        if (String.isNotBlank(updatedAtStr) && !updatedAtStr.equals('null')) {
+          parsedLastModifiedDate = parseDateTime(updatedAtStr);
+          System.debug(LoggingLevel.INFO, '  Parsed updated_at result: ' + parsedLastModifiedDate);
+          if (parsedLastModifiedDate != null) {
+            article.lastModifiedDate = parsedLastModifiedDate;
+            System.debug(LoggingLevel.INFO, '  Set article.lastModifiedDate from updated_at');
+          }
+        } else {
+          System.debug(LoggingLevel.WARN, '  updated_at is blank or "null"');
+        }
+      }
+      
+      // Try created_at for publishedDate (ISO 8601 format)
+      if (searchMap.containsKey('created_at')) {
+        String createdAtStr = String.valueOf(searchMap.get('created_at'));
+        System.debug(LoggingLevel.INFO, '  Attempting to parse created_at: "' + createdAtStr + '"');
+        if (String.isNotBlank(createdAtStr) && !createdAtStr.equals('null')) {
+          parsedPublishedDate = parseDateTime(createdAtStr);
+          System.debug(LoggingLevel.INFO, '  Parsed created_at result: ' + parsedPublishedDate);
+          if (parsedPublishedDate != null) {
+            article.publishedDate = parsedPublishedDate;
+            System.debug(LoggingLevel.INFO, '  Set article.publishedDate from created_at');
+            // Use created_at as fallback for lastModifiedDate if updated_at wasn't available
+            if (parsedLastModifiedDate == null) {
+              article.lastModifiedDate = parsedPublishedDate;
+              System.debug(LoggingLevel.INFO, '  Set article.lastModifiedDate from created_at (fallback)');
+            }
+          }
+        } else {
+          System.debug(LoggingLevel.WARN, '  created_at is blank or "null"');
+        }
+      }
+      
+      // Try last_published_date (formatted string like "July 30th, 2020")
       if (searchMap.containsKey('last_published_date')) {
         String dateStr = String.valueOf(searchMap.get('last_published_date'));
-        // Try to parse date (format: "July 30th, 2020")
-        try {
-          article.publishedDate = parseDateString(dateStr);
-        } catch (Exception e) {
-          System.debug(LoggingLevel.WARN, 'Could not parse last_published_date: ' + dateStr);
+        System.debug(LoggingLevel.INFO, '  Attempting to parse last_published_date: "' + dateStr + '"');
+        if (String.isNotBlank(dateStr) && !dateStr.equals('null')) {
+          try {
+            DateTime parsedDate = parseDateString(dateStr);
+            System.debug(LoggingLevel.INFO, '  Parsed last_published_date result: ' + parsedDate);
+            if (parsedDate != null) {
+              if (parsedPublishedDate == null) {
+                article.publishedDate = parsedDate;
+                System.debug(LoggingLevel.INFO, '  Set article.publishedDate from last_published_date');
+              }
+              // Use last_published_date for lastModifiedDate if we don't have updated_at or created_at
+              if (parsedLastModifiedDate == null) {
+                article.lastModifiedDate = parsedDate;
+                System.debug(LoggingLevel.INFO, '  Set article.lastModifiedDate from last_published_date (fallback)');
+              }
+            } else {
+              System.debug(LoggingLevel.WARN, '  parseDateString returned null for: "' + dateStr + '"');
+            }
+          } catch (Exception e) {
+            System.debug(LoggingLevel.ERROR, '  Exception parsing last_published_date: "' + dateStr + '" - ' + e.getMessage());
+            System.debug(LoggingLevel.ERROR, '  Stack trace: ' + e.getStackTraceString());
+          }
+        } else {
+          System.debug(LoggingLevel.WARN, '  last_published_date is blank or "null"');
         }
+      }
+      
+      // Debug: Log final state
+      System.debug(LoggingLevel.INFO, 'HelpjuiceApiService: Final date state - publishedDate: ' + article.publishedDate + ', lastModifiedDate: ' + article.lastModifiedDate);
+      
+      // Debug: Log available date fields if no date was set
+      if (article.lastModifiedDate == null) {
+        System.debug(LoggingLevel.WARN, 'HelpjuiceApiService: WARNING - No lastModifiedDate set after all attempts!');
+        System.debug(LoggingLevel.WARN, '  Available date fields: updated_at=' + searchMap.containsKey('updated_at') + 
+          ', created_at=' + searchMap.containsKey('created_at') + 
+          ', last_published_date=' + searchMap.containsKey('last_published_date'));
+        System.debug(LoggingLevel.WARN, '  Article ID: ' + article.id + ', Title: ' + article.title);
       }
 
       // Map last_published_user_name as author
@@ -1182,8 +1275,8 @@ public class HelpjuiceApiService {
   }
 
   /**
-   * @description Parses date string from Helpjuice search results (e.g., "July 30th, 2020")
-   * @param dateStr Date string in format like "July 30th, 2020"
+   * @description Parses date string from Helpjuice search results (e.g., "July 30th, 2020" or "May 3rd, 2024")
+   * @param dateStr Date string in format like "July 30th, 2020" or "May 3rd, 2024"
    * @return DateTime Parsed DateTime object, or null if parsing fails
    */
   private static DateTime parseDateString(String dateStr) {
@@ -1192,17 +1285,74 @@ public class HelpjuiceApiService {
     }
 
     try {
-      // Helpjuice search results use format like "July 30th, 2020"
+      System.debug(LoggingLevel.INFO, 'parseDateString: Input: "' + dateStr + '"');
+      
+      // Helpjuice search results use format like "July 30th, 2020" or "May 3rd, 2024"
       // Remove ordinal suffixes (st, nd, rd, th)
-      String cleaned = dateStr.replaceAll('(\\d+)(st|nd|rd|th)', '$1');
-      // Try to parse as date
-      // Note: This is a simplified parser - may need adjustment based on actual format
-      return DateTime.parse(cleaned);
+      String cleaned = dateStr.replaceAll('(\\d+)(st|nd|rd|th)', '$1').trim();
+      System.debug(LoggingLevel.INFO, 'parseDateString: After removing ordinals: "' + cleaned + '"');
+      
+      // Map month names to numbers
+      Map<String, Integer> monthMap = new Map<String, Integer>{
+        'January' => 1, 'February' => 2, 'March' => 3, 'April' => 4,
+        'May' => 5, 'June' => 6, 'July' => 7, 'August' => 8,
+        'September' => 9, 'October' => 10, 'November' => 11, 'December' => 12
+      };
+      
+      // Parse format: "Month Day, Year" (e.g., "May 3, 2024")
+      // Use string manipulation instead of regex for better reliability
+      cleaned = cleaned.trim();
+      
+      // Find the comma that separates day and year
+      Integer commaIndex = cleaned.indexOf(',');
+      if (commaIndex == -1) {
+        System.debug(LoggingLevel.WARN, 'parseDateString: No comma found in date string: "' + cleaned + '"');
+        return null;
+      }
+      
+      // Extract year (after comma)
+      String yearPart = cleaned.substring(commaIndex + 1).trim();
+      if (yearPart.length() != 4) {
+        System.debug(LoggingLevel.WARN, 'parseDateString: Invalid year format: "' + yearPart + '"');
+        return null;
+      }
+      Integer year = Integer.valueOf(yearPart);
+      
+      // Extract month and day (before comma)
+      String monthDayPart = cleaned.substring(0, commaIndex).trim();
+      
+      // Find the last space to separate month and day
+      Integer lastSpaceIndex = monthDayPart.lastIndexOf(' ');
+      if (lastSpaceIndex == -1) {
+        System.debug(LoggingLevel.WARN, 'parseDateString: No space found between month and day: "' + monthDayPart + '"');
+        return null;
+      }
+      
+      // Extract month name
+      String monthName = monthDayPart.substring(0, lastSpaceIndex).trim();
+      Integer monthNum = monthMap.get(monthName);
+      if (monthNum == null) {
+        System.debug(LoggingLevel.WARN, 'parseDateString: Unknown month name: "' + monthName + '"');
+        return null;
+      }
+      
+      // Extract day
+      String dayStr = monthDayPart.substring(lastSpaceIndex + 1).trim();
+      Integer day = Integer.valueOf(dayStr);
+      
+      System.debug(LoggingLevel.INFO, 'parseDateString: Extracted - month: ' + monthNum + ', day: ' + day + ', year: ' + year);
+      
+      // Create DateTime directly (more reliable than parsing string)
+      DateTime result = DateTime.newInstance(year, monthNum, day, 0, 0, 0);
+      System.debug(LoggingLevel.INFO, 'parseDateString: Final DateTime: ' + result);
+      return result;
+      
     } catch (Exception e) {
       System.debug(
-        LoggingLevel.WARN,
-        'Could not parse date string: ' + dateStr + ' - ' + e.getMessage()
+        LoggingLevel.ERROR,
+        'parseDateString: Exception parsing date string: "' + dateStr + '" - ' + e.getMessage()
       );
+      System.debug(LoggingLevel.ERROR, 'parseDateString: Stack trace: ' + e.getStackTraceString());
       return null;
     }
   }

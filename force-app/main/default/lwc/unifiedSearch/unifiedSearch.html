@@ -218,7 +218,7 @@
               
               <!-- Date Filter -->
               <div class="slds-m-bottom_medium">
-                <div class="slds-text-heading_small slds-m-bottom_small">Date Range</div>
+                <div class="slds-text-heading_small slds-m-bottom_small">Last Modified Date Range</div>
                 <div class="slds-grid slds-gutters">
                   <div class="slds-col">
                     <lightning-input
@@ -274,10 +274,22 @@
           </div>
         </template>
 
-        <!-- Results Count -->
+        <!-- Results Count and Page Size -->
         <template if:true={hasResults}>
-          <div class="slds-text-heading_small slds-m-bottom_medium result-count">
-            Found {totalCount} article{pluralCount}
+          <div class="slds-grid slds-grid_align-spread slds-m-bottom_medium result-count-container">
+            <div class="slds-text-heading_small result-count">
+              Found {totalCount} article{pluralCount}
+            </div>
+            <div class="page-size-selector">
+              <lightning-combobox
+                label="Results per page"
+                value={pageSizeString}
+                options={pageSizeOptions}
+                onchange={handlePageSizeChange}
+                variant="label-hidden"
+                class="page-size-combobox"
+              ></lightning-combobox>
+            </div>
           </div>
         </template>
 
@@ -326,8 +338,19 @@
                       </template>
                     </div>
                     <div class="result-card-date">
+                      <lightning-icon
+                        icon-name="utility:date_time"
+                        size="xx-small"
+                        alternative-text="Last modified"
+                        class="slds-m-right_xx-small"
+                      ></lightning-icon>
                       <span class="slds-text-body_small slds-text-color_weak">
-                        {article.formattedLastModifiedDate}
+                        <template if:true={article.formattedLastModifiedDate}>
+                          Modified: {article.formattedLastModifiedDate}
+                        </template>
+                        <template if:false={article.formattedLastModifiedDate}>
+                          <span class="slds-text-color_weak">No date available</span>
+                        </template>
                       </span>
                     </div>
                   </div>
@@ -385,121 +408,178 @@
           </div>
         </template>
 
-        <!-- Popular Articles Section (shown when no search results) -->
-        <template if:true={showPopularArticles}>
+        <!-- Tabs Section (Popular Articles and Categories) -->
+        <template if:true={showTabs}>
           <template if:false={isLoading}>
             <div class="slds-m-bottom_x-large">
-              <div class="slds-text-heading_medium slds-m-bottom_medium">
-                Popular Articles
-              </div>
-              <div class="results-grid">
-                <template for:each={popularArticles} for:item="article">
-                  <article
-                    key={article.id}
-                    class="result-card"
+              <!-- Tabs Navigation -->
+              <ul class="slds-tabs_default__nav" role="tablist">
+                <li class="slds-tabs_default__item" role="presentation" title="Popular Articles">
+                  <a
+                    class="slds-tabs_default__link"
+                    href="javascript:void(0);"
+                    role="tab"
+                    tabindex={articlesTabIndex}
+                    aria-selected={isArticlesTabActive}
+                    aria-controls="tab-default-1"
+                    id="tab-default-1__item"
+                    data-tab="articles"
+                    onclick={handleTabChange}
                   >
-                    <div class="result-card-content">
-                      <h3 class="result-card-title">
-                        <a
-                          href="javascript:void(0);"
-                          data-id={article.id}
-                          data-source={article.source}
-                          onclick={handleViewArticle}
-                          class="result-title-link"
-                        >
-                          {article.title}
-                        </a>
-                      </h3>
-                      <p class="result-card-snippet">{article.snippet}</p>
-                      <div class="result-card-meta">
-                        <div class="result-card-badges">
-                          <lightning-badge
-                            label={article.source}
-                            class={article.badgeClass}
-                          ></lightning-badge>
-                          <template if:true={article.categories}>
-                            <template for:each={article.categories} for:item="category">
+                    Popular Articles
+                  </a>
+                </li>
+                <li class="slds-tabs_default__item" role="presentation" title="Categories">
+                  <a
+                    class="slds-tabs_default__link"
+                    href="javascript:void(0);"
+                    role="tab"
+                    tabindex={categoriesTabIndex}
+                    aria-selected={isCategoriesTabActive}
+                    aria-controls="tab-default-2"
+                    id="tab-default-2__item"
+                    data-tab="categories"
+                    onclick={handleTabChange}
+                  >
+                    Categories
+                  </a>
+                </li>
+              </ul>
+
+              <!-- Tab Content: Popular Articles -->
+              <div
+                id="tab-default-1"
+                class="slds-tabs_default__content"
+                role="tabpanel"
+                aria-labelledby="tab-default-1__item"
+                style={articlesTabStyle}
+              >
+                <template if:true={showPopularArticles}>
+                  <div class="popular-articles-grid">
+                    <template for:each={displayedPopularArticles} for:item="article">
+                      <article
+                        key={article.id}
+                        class="result-card"
+                      >
+                        <div class="result-card-content">
+                          <h3 class="result-card-title">
+                            <a
+                              href="javascript:void(0);"
+                              data-id={article.id}
+                              data-source={article.source}
+                              onclick={handleViewArticle}
+                              class="result-title-link"
+                            >
+                              {article.title}
+                            </a>
+                          </h3>
+                          <p class="result-card-snippet">{article.snippet}</p>
+                          <div class="result-card-meta">
+                            <div class="result-card-badges">
                               <lightning-badge
-                                key={category}
-                                label={category}
-                                class="slds-badge category-badge"
+                                label={article.source}
+                                class={article.badgeClass}
                               ></lightning-badge>
-                            </template>
-                          </template>
-                          <template if:true={article.tags}>
-                            <template for:each={article.tags} for:item="tag">
-                              <span key={tag} class="slds-badge tag-pill">
-                                {tag}
+                              <template if:true={article.categories}>
+                                <template for:each={article.categories} for:item="category">
+                                  <lightning-badge
+                                    key={category}
+                                    label={category}
+                                    class="slds-badge category-badge"
+                                  ></lightning-badge>
+                                </template>
+                              </template>
+                              <template if:true={article.tags}>
+                                <template for:each={article.tags} for:item="tag">
+                                  <span key={tag} class="slds-badge tag-pill">
+                                    {tag}
+                                  </span>
+                                </template>
+                              </template>
+                            </div>
+                            <div class="result-card-date">
+                              <span class="slds-text-body_small slds-text-color_weak">
+                                {article.formattedLastModifiedDate}
                               </span>
-                            </template>
+                            </div>
+                          </div>
+                          <template if:true={article.url}>
+                            <div class="result-card-url">
+                              <a
+                                href={article.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="result-url-link"
+                              >
+                                {article.url}
+                              </a>
+                              <lightning-button-icon
+                                icon-name="utility:copy"
+                                alternative-text="Copy link"
+                                title="Copy link"
+                                data-url={article.url}
+                                onclick={handleCopyLink}
+                                class="copy-link-icon"
+                                variant="border-filled"
+                              ></lightning-button-icon>
+                            </div>
                           </template>
                         </div>
-                        <div class="result-card-date">
-                          <span class="slds-text-body_small slds-text-color_weak">
-                            {article.formattedLastModifiedDate}
-                          </span>
-                        </div>
-                      </div>
-                      <template if:true={article.url}>
-                        <div class="result-card-url">
-                          <a
-                            href={article.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="result-url-link"
-                          >
-                            {article.url}
-                          </a>
-                          <lightning-button-icon
-                            icon-name="utility:copy"
-                            alternative-text="Copy link"
-                            title="Copy link"
-                            data-url={article.url}
-                            onclick={handleCopyLink}
-                            class="copy-link-icon"
-                            variant="border-filled"
-                          ></lightning-button-icon>
-                        </div>
-                      </template>
+                      </article>
+                    </template>
+                  </div>
+                </template>
+                <template if:false={showPopularArticles}>
+                  <div class="slds-box slds-theme_shade slds-align_absolute-center slds-m-vertical_xx-large empty-state">
+                    <div class="slds-text-body_regular slds-text-color_weak">
+                      No popular articles available.
                     </div>
-                  </article>
+                  </div>
                 </template>
               </div>
-            </div>
-          </template>
-        </template>
 
-        <!-- Categories Section (shown when no search results) -->
-        <template if:true={showCategories}>
-          <template if:false={isLoading}>
-            <div class="slds-m-bottom_x-large">
-              <div class="slds-text-heading_medium slds-m-bottom_medium">
-                Categories
-              </div>
-              <div class="slds-grid slds-wrap">
-                <template for:each={categories} for:item="category">
-                  <div
-                    key={category.id}
-                    class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-3"
-                  >
-                    <div class="slds-card slds-m-bottom_medium">
-                      <div class="slds-card__body slds-card__body_inner">
-                        <h3 class="slds-text-heading_small slds-m-bottom_small">
-                          <a
-                            href="javascript:void(0);"
-                            data-category-id={category.id}
-                            onclick={handleCategoryClick}
-                            class="slds-card__header-link"
-                          >
-                            {category.name}
-                          </a>
-                        </h3>
-                        <template if:true={category.description}>
-                          <p class="slds-text-body_regular slds-text-color_weak">
-                            {category.description}
-                          </p>
-                        </template>
+              <!-- Tab Content: Categories -->
+              <div
+                id="tab-default-2"
+                class="slds-tabs_default__content"
+                role="tabpanel"
+                aria-labelledby="tab-default-2__item"
+                style={categoriesTabStyle}
+              >
+                <template if:true={showCategories}>
+                  <div class="slds-grid slds-wrap">
+                    <template for:each={categories} for:item="category">
+                      <div
+                        key={category.id}
+                        class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-3"
+                      >
+                        <div class="slds-card slds-m-bottom_medium">
+                          <div class="slds-card__body slds-card__body_inner">
+                            <h3 class="slds-text-heading_small slds-m-bottom_small">
+                              <a
+                                href="javascript:void(0);"
+                                data-category-id={category.id}
+                                onclick={handleCategoryClick}
+                                class="slds-card__header-link"
+                              >
+                                {category.name}
+                              </a>
+                            </h3>
+                            <template if:true={category.description}>
+                              <p class="slds-text-body_regular slds-text-color_weak">
+                                {category.description}
+                              </p>
+                            </template>
+                          </div>
+                        </div>
                       </div>
+                    </template>
+                  </div>
+                </template>
+                <template if:false={showCategories}>
+                  <div class="slds-box slds-theme_shade slds-align_absolute-center slds-m-vertical_xx-large empty-state">
+                    <div class="slds-text-body_regular slds-text-color_weak">
+                      No categories available.
                     </div>
                   </div>
                 </template>
@@ -523,11 +603,11 @@
             <template if:false={showPopularArticles}>
               <template if:false={showCategories}>
                 <template if:false={isLoadingPopular}>
-                  <div class="slds-box slds-theme_shade slds-align_absolute-center slds-m-vertical_xx-large empty-state">
+                  <div class="slds-box slds-theme_shade slds-m-vertical_xx-large empty-state">
                     <div class="slds-text-heading_medium slds-m-bottom_small">
                       No articles found
                     </div>
-                    <div class="slds-text-body_regular slds-text-color_weak">
+                    <div class="slds-text-body_regular slds-text-color_weak empty-state-message">
                       Try adjusting your search query or filters to find what you're looking for.
                     </div>
                   </div>
