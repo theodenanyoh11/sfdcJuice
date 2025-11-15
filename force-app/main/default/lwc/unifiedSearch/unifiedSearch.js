@@ -148,6 +148,28 @@ export default class UnifiedSearch extends LightningElement {
     }
     this.filterMenuToggleTime = Date.now();
     this.showFilterMenu = !this.showFilterMenu;
+    
+    // Calculate and set panel position when opening
+    if (this.showFilterMenu) {
+      setTimeout(() => {
+        this.positionFilterPanel();
+      }, 0);
+    }
+  }
+
+  positionFilterPanel() {
+    const searchBarContainer = this.template.querySelector('.search-bar-container');
+    const filterPanel = this.template.querySelector('.filter-panel-dropdown');
+    
+    if (searchBarContainer && filterPanel) {
+      const rect = searchBarContainer.getBoundingClientRect();
+      const scrollY = window.scrollY || window.pageYOffset;
+      
+      // Position panel below the search bar
+      filterPanel.style.top = `${rect.bottom + scrollY + 8}px`;
+      filterPanel.style.left = `${rect.left}px`;
+      filterPanel.style.width = `${rect.width}px`;
+    }
   }
 
   handleCloseDrawer(event) {
@@ -247,6 +269,19 @@ export default class UnifiedSearch extends LightningElement {
     // Load popular articles and categories when component loads (no search query)
     this.loadPopularContent();
     
+    // Add resize and scroll listeners to reposition panel
+    this.handleResize = () => {
+      if (this.showFilterMenu) {
+        this.positionFilterPanel();
+      }
+    };
+    
+    this.handleScroll = () => {
+      if (this.showFilterMenu) {
+        this.positionFilterPanel();
+      }
+    };
+    
     // Add click outside listener to close filter drawer
     this.handleClickOutside = (event) => {
       if (!this.showFilterMenu) return;
@@ -258,8 +293,8 @@ export default class UnifiedSearch extends LightningElement {
       }
       
       // Get the panel and backdrop elements
-      const filterPanel = this.template.querySelector('.filter-panel');
-      const backdrop = this.template.querySelector('.slds-panel__backdrop');
+      const filterPanel = this.template.querySelector('.filter-panel-dropdown');
+      const backdrop = this.template.querySelector('.filter-panel-backdrop');
       
       if (!filterPanel) {
         this.showFilterMenu = false;
@@ -296,6 +331,19 @@ export default class UnifiedSearch extends LightningElement {
         // Direct match
         if (node === filterPanel) return true;
         
+        // Check if this is a Lightning component (tagName starts with 'lightning-')
+        const tagName = node.tagName ? node.tagName.toLowerCase() : '';
+        if (tagName.startsWith('lightning-')) {
+          // Check if this Lightning component is inside the panel
+          try {
+            if (filterPanel.contains(node)) return true;
+            // Also check using closest
+            if (node.closest && node.closest('.filter-panel-dropdown')) return true;
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+        
         // Check if panel contains this node
         try {
           if (filterPanel.contains(node)) return true;
@@ -309,15 +357,42 @@ export default class UnifiedSearch extends LightningElement {
             const root = node.getRootNode();
             if (root instanceof ShadowRoot && root.host) {
               const host = root.host;
+              // Check if the host is a Lightning component in the panel
               if (filterPanel.contains(host)) return true;
+              // Also check if host has the panel as ancestor
+              let current = host;
+              let depth = 0;
+              while (current && depth < 10) {
+                if (current === filterPanel || 
+                    (current.closest && current.closest('.filter-panel-dropdown'))) {
+                  return true;
+                }
+                current = current.parentElement || current.parentNode;
+                depth++;
+              }
             }
           } catch (e) {
             // Ignore errors
           }
         }
         
-        // Use closest
-        if (node.closest && node.closest('.filter-panel')) return true;
+        // Use closest to check if element is inside panel
+        try {
+          if (node.closest && node.closest('.filter-panel-dropdown')) return true;
+        } catch (e) {
+          // Ignore errors
+        }
+        
+        // Traverse up to find if we're inside the panel
+        let current = node;
+        let depth = 0;
+        while (current && current !== document && current !== document.body && depth < 15) {
+          if (current === filterPanel) return true;
+          if (current.classList && current.classList.contains('filter-panel-dropdown')) return true;
+          if (current.dataset && current.dataset.filterDrawer === 'true') return true;
+          current = current.parentElement || current.parentNode;
+          depth++;
+        }
         
         return false;
       });
@@ -344,6 +419,8 @@ export default class UnifiedSearch extends LightningElement {
     setTimeout(() => {
       document.addEventListener('click', this.handleClickOutside, true);
       document.addEventListener('keydown', this.handleEscapeKey, true);
+      window.addEventListener('resize', this.handleResize);
+      window.addEventListener('scroll', this.handleScroll, true);
     }, 0);
   }
 
@@ -354,6 +431,12 @@ export default class UnifiedSearch extends LightningElement {
     }
     if (this.handleEscapeKey) {
       document.removeEventListener('keydown', this.handleEscapeKey, true);
+    }
+    if (this.handleResize) {
+      window.removeEventListener('resize', this.handleResize);
+    }
+    if (this.handleScroll) {
+      window.removeEventListener('scroll', this.handleScroll, true);
     }
   }
 

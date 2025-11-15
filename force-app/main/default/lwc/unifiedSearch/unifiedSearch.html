@@ -116,6 +116,145 @@
             icon-position="left"
           ></lightning-button>
         </div>
+        
+        <!-- Filter Panel - Dropdown below search bar -->
+        <template if:true={showFilterMenu}>
+          <!-- Filter Panel -->
+          <div class="filter-panel-dropdown" data-filter-drawer="true">
+            <div class="filter-panel-header">
+              <h2 class="filter-panel-title">
+                <span class="slds-text-heading_small">Filters</span>
+              </h2>
+              <div class="filter-panel-actions">
+                <lightning-button-icon
+                  icon-name="utility:close"
+                  alternative-text="Close panel"
+                  title="Close panel"
+                  onclick={handleCloseDrawer}
+                  variant="border-filled"
+                  class="filter-panel-close"
+                ></lightning-button-icon>
+              </div>
+            </div>
+            <div class="filter-panel-body">
+              <!-- Source Filter -->
+              <div class="slds-form-element slds-m-bottom_medium">
+                <lightning-combobox
+                  label="Source"
+                  value={sourceFilter}
+                  options={sourceOptions}
+                  onchange={handleSourceFilterChange}
+                  placeholder="Select Source"
+                ></lightning-combobox>
+              </div>
+              
+              <!-- Category Filter -->
+              <div class="slds-form-element slds-m-bottom_medium">
+                <template if:true={availableCategories.length}>
+                  <lightning-combobox
+                    label="Category"
+                    value=""
+                    options={availableCategories}
+                    onchange={handleCategoryFilterAdd}
+                    placeholder="Select Category"
+                  ></lightning-combobox>
+                </template>
+                <template if:false={availableCategories.length}>
+                  <lightning-input
+                    label="Category"
+                    value=""
+                    placeholder="No categories available. Perform a search first."
+                    disabled
+                  ></lightning-input>
+                </template>
+                <!-- Selected Category Chips -->
+                <template if:true={selectedCategories.length}>
+                  <div class="slds-m-top_small">
+                    <template for:each={selectedCategories} for:item="category">
+                      <span key={category} class="slds-pill filter-chip filter-chip-category slds-m-right_xx-small slds-m-bottom_xx-small" data-category={category}>
+                        <span class="slds-pill__label">{category}</span>
+                        <span class="slds-pill__remove" role="button" tabindex="0" data-category={category} onclick={handleRemoveCategory}>
+                          <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
+                        </span>
+                      </span>
+                    </template>
+                  </div>
+                </template>
+              </div>
+              
+              <!-- Tag Filter -->
+              <div class="slds-form-element slds-m-bottom_medium">
+                <template if:true={availableTags.length}>
+                  <lightning-combobox
+                    label="Tag"
+                    value=""
+                    options={availableTags}
+                    onchange={handleTagFilterAdd}
+                    placeholder="Select Tag"
+                  ></lightning-combobox>
+                </template>
+                <template if:false={availableTags.length}>
+                  <lightning-input
+                    label="Tag"
+                    value=""
+                    placeholder="No tags available. Perform a search first."
+                    disabled
+                  ></lightning-input>
+                </template>
+                <!-- Selected Tag Chips -->
+                <template if:true={selectedTags.length}>
+                  <div class="slds-m-top_small">
+                    <template for:each={selectedTags} for:item="tag">
+                      <span key={tag} class="slds-pill filter-chip filter-chip-tag slds-m-right_xx-small slds-m-bottom_xx-small" data-tag={tag}>
+                        <span class="slds-pill__label">{tag}</span>
+                        <span class="slds-pill__remove" role="button" tabindex="0" data-tag={tag} onclick={handleRemoveTag}>
+                          <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
+                        </span>
+                      </span>
+                    </template>
+                  </div>
+                </template>
+              </div>
+              
+              <!-- Date Filter -->
+              <div class="slds-m-bottom_medium">
+                <div class="slds-text-heading_small slds-m-bottom_small">Date Range</div>
+                <div class="slds-grid slds-gutters">
+                  <div class="slds-col">
+                    <lightning-input
+                      type="date"
+                      label="From"
+                      value={dateFrom}
+                      onchange={handleDateFromChange}
+                      placeholder="From"
+                    ></lightning-input>
+                  </div>
+                  <div class="slds-col">
+                    <lightning-input
+                      type="date"
+                      label="To"
+                      value={dateTo}
+                      onchange={handleDateToChange}
+                      placeholder="To"
+                    ></lightning-input>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <template if:true={hasFilters}>
+              <div class="filter-panel-footer">
+                <lightning-button
+                  label="Clear All Filters"
+                  variant="neutral"
+                  onclick={handleClearFilters}
+                  icon-name="utility:clear"
+                  icon-position="left"
+                  class="slds-size_full"
+                ></lightning-button>
+              </div>
+            </template>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -409,145 +548,8 @@
     ></c-article-viewer>
   </template>
 
-  <!-- Filter Panel - At root level for proper fixed positioning -->
+  <!-- Filter Panel Backdrop - Full screen overlay -->
   <template if:true={showFilterMenu}>
-    <!-- Panel Backdrop -->
-    <div class="slds-panel__backdrop" onclick={handleCloseDrawer}></div>
-    
-    <!-- Filter Panel -->
-    <div class="slds-panel slds-panel_docked slds-panel_docked-right filter-panel" data-filter-drawer="true">
-      <div class="slds-panel__header">
-        <h2 class="slds-panel__header-title">
-          <span class="slds-text-heading_small">Filters</span>
-        </h2>
-        <div class="slds-panel__header-actions">
-          <lightning-button-icon
-            icon-name="utility:close"
-            alternative-text="Close panel"
-            title="Close panel"
-            onclick={handleCloseDrawer}
-            variant="border-filled"
-            class="slds-panel__close"
-          ></lightning-button-icon>
-        </div>
-      </div>
-      <div class="slds-panel__body">
-        <!-- Source Filter -->
-        <div class="slds-form-element slds-m-bottom_medium">
-          <lightning-combobox
-            label="Source"
-            value={sourceFilter}
-            options={sourceOptions}
-            onchange={handleSourceFilterChange}
-            placeholder="Select Source"
-          ></lightning-combobox>
-        </div>
-        
-        <!-- Category Filter -->
-        <div class="slds-form-element slds-m-bottom_medium">
-          <template if:true={availableCategories.length}>
-            <lightning-combobox
-              label="Category"
-              value=""
-              options={availableCategories}
-              onchange={handleCategoryFilterAdd}
-              placeholder="Select Category"
-            ></lightning-combobox>
-          </template>
-          <template if:false={availableCategories.length}>
-            <lightning-input
-              label="Category"
-              value=""
-              placeholder="No categories available. Perform a search first."
-              disabled
-            ></lightning-input>
-          </template>
-          <!-- Selected Category Chips -->
-          <template if:true={selectedCategories.length}>
-            <div class="slds-m-top_small">
-              <template for:each={selectedCategories} for:item="category">
-                <span key={category} class="slds-pill filter-chip filter-chip-category slds-m-right_xx-small slds-m-bottom_xx-small" data-category={category}>
-                  <span class="slds-pill__label">{category}</span>
-                  <span class="slds-pill__remove" role="button" tabindex="0" data-category={category} onclick={handleRemoveCategory}>
-                    <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
-                  </span>
-                </span>
-              </template>
-            </div>
-          </template>
-        </div>
-        
-        <!-- Tag Filter -->
-        <div class="slds-form-element slds-m-bottom_medium">
-          <template if:true={availableTags.length}>
-            <lightning-combobox
-              label="Tag"
-              value=""
-              options={availableTags}
-              onchange={handleTagFilterAdd}
-              placeholder="Select Tag"
-            ></lightning-combobox>
-          </template>
-          <template if:false={availableTags.length}>
-            <lightning-input
-              label="Tag"
-              value=""
-              placeholder="No tags available. Perform a search first."
-              disabled
-            ></lightning-input>
-          </template>
-          <!-- Selected Tag Chips -->
-          <template if:true={selectedTags.length}>
-            <div class="slds-m-top_small">
-              <template for:each={selectedTags} for:item="tag">
-                <span key={tag} class="slds-pill filter-chip filter-chip-tag slds-m-right_xx-small slds-m-bottom_xx-small" data-tag={tag}>
-                  <span class="slds-pill__label">{tag}</span>
-                  <span class="slds-pill__remove" role="button" tabindex="0" data-tag={tag} onclick={handleRemoveTag}>
-                    <lightning-icon icon-name="utility:close" size="xx-small" alternative-text="Remove"></lightning-icon>
-                  </span>
-                </span>
-              </template>
-            </div>
-          </template>
-        </div>
-        
-        <!-- Date Filter -->
-        <div class="slds-m-bottom_medium">
-          <div class="slds-text-heading_small slds-m-bottom_small">Date Range</div>
-          <div class="slds-grid slds-gutters">
-            <div class="slds-col">
-              <lightning-input
-                type="date"
-                label="From"
-                value={dateFrom}
-                onchange={handleDateFromChange}
-                placeholder="From"
-              ></lightning-input>
-            </div>
-            <div class="slds-col">
-              <lightning-input
-                type="date"
-                label="To"
-                value={dateTo}
-                onchange={handleDateToChange}
-                placeholder="To"
-              ></lightning-input>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template if:true={hasFilters}>
-        <div class="slds-panel__footer">
-          <lightning-button
-            label="Clear All Filters"
-            variant="neutral"
-            onclick={handleClearFilters}
-            icon-name="utility:clear"
-            icon-position="left"
-            class="slds-size_full"
-          ></lightning-button>
-        </div>
-      </template>
-    </div>
+    <div class="filter-panel-backdrop" onclick={handleCloseDrawer}></div>
   </template>
 </template>
