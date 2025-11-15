@@ -163,10 +163,11 @@ export default class UnifiedSearch extends LightningElement {
     
     if (searchBarContainer && filterPanel) {
       const rect = searchBarContainer.getBoundingClientRect();
-      const scrollY = window.scrollY || window.pageYOffset;
       
       // Position panel below the search bar
-      filterPanel.style.top = `${rect.bottom + scrollY + 8}px`;
+      // getBoundingClientRect() returns viewport-relative coordinates
+      // and position: fixed also positions relative to viewport, so no scroll offset needed
+      filterPanel.style.top = `${rect.bottom + 8}px`;
       filterPanel.style.left = `${rect.left}px`;
       filterPanel.style.width = `${rect.width}px`;
     }
