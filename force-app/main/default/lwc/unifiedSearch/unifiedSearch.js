@@ -158,11 +158,11 @@ export default class UnifiedSearch extends LightningElement {
   }
 
   positionFilterPanel() {
-    const searchBarContainer = this.template.querySelector('.search-bar-container');
+    const searchBar = this.template.querySelector('.unified-search-bar');
     const filterPanel = this.template.querySelector('.filter-panel-dropdown');
     
-    if (searchBarContainer && filterPanel) {
-      const rect = searchBarContainer.getBoundingClientRect();
+    if (searchBar && filterPanel) {
+      const rect = searchBar.getBoundingClientRect();
       
       // Position panel below the search bar
       // getBoundingClientRect() returns viewport-relative coordinates
