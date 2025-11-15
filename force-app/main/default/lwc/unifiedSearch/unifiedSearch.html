@@ -1,0 +1,406 @@
+<template>
+  <div class="slds-p-around_large">
+    <!-- Header with Large Search -->
+    <div class="slds-m-bottom_x-large">
+      <div class="slds-text-heading_large slds-m-bottom_medium">
+        Unified Knowledge Search
+      </div>
+      <div class="slds-grid slds-gutters">
+        <div class="slds-col slds-size_1-of-1 slds-large-size_8-of-12">
+          <lightning-input
+            type="text"
+            label="Search Articles"
+            value={searchQuery}
+            onchange={handleSearchInputChange}
+            onkeypress={handleKeyPress}
+            placeholder="Enter your search query..."
+            class="large-search-input"
+          >
+          </lightning-input>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-12">
+          <lightning-button
+            label="Search"
+            variant="brand"
+            onclick={handleSearch}
+            class="slds-m-top_large slds-button_stretch"
+            icon-name="utility:search"
+            icon-position="left"
+          ></lightning-button>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-12">
+          <lightning-combobox
+            label="Source"
+            value={sourceFilter}
+            options={sourceOptions}
+            onchange={handleSourceFilterChange}
+            class="slds-m-top_large"
+            variant="label-hidden"
+          ></lightning-combobox>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area with Sidebar -->
+    <div class="slds-grid slds-gutters">
+      <!-- Left Sidebar - Filters -->
+      <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-12">
+        <div class="slds-box slds-theme_shade sidebar-filters">
+          <div class="slds-text-heading_small slds-m-bottom_medium">
+            Filters
+          </div>
+
+          <!-- Clear Filters Button -->
+          <template if:true={hasFilters}>
+            <div class="slds-m-bottom_medium">
+              <lightning-button
+                label="Clear All Filters"
+                variant="neutral"
+                onclick={handleClearFilters}
+                class="slds-button_stretch"
+              ></lightning-button>
+            </div>
+          </template>
+
+          <!-- Tags Filter -->
+          <div class="slds-m-bottom_medium">
+            <lightning-dual-listbox
+              label="Tags"
+              source-label="Available"
+              selected-label="Selected"
+              options={availableTags}
+              value={selectedTags}
+              onchange={handleTagFilterChange}
+              size="5"
+            ></lightning-dual-listbox>
+          </div>
+
+          <!-- Categories Filter -->
+          <div class="slds-m-bottom_medium">
+            <lightning-dual-listbox
+              label="Categories"
+              source-label="Available"
+              selected-label="Selected"
+              options={availableCategories}
+              value={selectedCategories}
+              onchange={handleCategoryFilterChange}
+              size="5"
+            ></lightning-dual-listbox>
+          </div>
+
+          <!-- Date Range Filters -->
+          <div class="slds-m-bottom_medium">
+            <lightning-input
+              type="date"
+              label="Date From"
+              value={dateFrom}
+              onchange={handleDateFromChange}
+            ></lightning-input>
+          </div>
+          <div class="slds-m-bottom_medium">
+            <lightning-input
+              type="date"
+              label="Date To"
+              value={dateTo}
+              onchange={handleDateToChange}
+            ></lightning-input>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Content Area - Results -->
+      <div class="slds-col slds-size_1-of-1 slds-large-size_9-of-12">
+        <!-- Loading Spinner -->
+        <template if:true={isLoading}>
+          <div class="slds-align_absolute-center slds-m-vertical_xx-large">
+            <lightning-spinner alternative-text="Loading" size="large"></lightning-spinner>
+          </div>
+        </template>
+
+        <!-- Error Message -->
+        <template if:true={hasError}>
+          <div class="slds-box slds-theme_error slds-m-vertical_medium">
+            <div class="slds-text-heading_small">{errorMessage}</div>
+          </div>
+        </template>
+
+        <!-- Results Count -->
+        <template if:true={hasResults}>
+          <div class="slds-text-heading_small slds-m-bottom_medium">
+            Found {totalCount} article(s)
+          </div>
+        </template>
+
+        <!-- Results List -->
+        <template if:true={hasResults}>
+          <div class="slds-grid slds-wrap">
+            <template for:each={articles} for:item="article">
+              <div
+                key={article.id}
+                class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-2"
+              >
+                <article class="slds-card slds-m-bottom_medium article-card">
+                  <div class="slds-card__header slds-grid">
+                    <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                      <div class="slds-media__figure">
+                        <lightning-badge
+                          label={article.source}
+                          class={article.badgeClass}
+                        ></lightning-badge>
+                      </div>
+                      <div class="slds-media__body">
+                        <h2 class="slds-card__header-title">
+                          <a
+                            href="javascript:void(0);"
+                            data-id={article.id}
+                            data-source={article.source}
+                            onclick={handleViewArticle}
+                            class="slds-card__header-link"
+                          >
+                            {article.title}
+                          </a>
+                        </h2>
+                      </div>
+                    </header>
+                  </div>
+                  <div class="slds-card__body slds-card__body_inner">
+                    <p class="slds-text-body_regular slds-m-bottom_small">{article.snippet}</p>
+                    <template if:true={article.tags}>
+                      <div class="slds-m-bottom_small">
+                        <template for:each={article.tags} for:item="tag">
+                          <lightning-badge
+                            key={tag}
+                            label={tag}
+                            class="slds-m-right_xx-small slds-m-bottom_xx-small"
+                          ></lightning-badge>
+                        </template>
+                      </div>
+                    </template>
+                    <template if:true={article.url}>
+                      <div class="slds-grid slds-grid_align-spread slds-m-bottom_small article-link-container">
+                        <div class="slds-grid slds-grid_align-center slds-grow">
+                          <lightning-formatted-url
+                            value={article.url}
+                            label=""
+                            target="_blank"
+                            class="slds-text-body_small"
+                          ></lightning-formatted-url>
+                        </div>
+                        <lightning-button-icon
+                          icon-name="utility:copy"
+                          variant="border-filled"
+                          alternative-text="Copy link"
+                          title="Copy link to clipboard"
+                          data-url={article.url}
+                          onclick={handleCopyLink}
+                          class="slds-m-left_x-small copy-link-button"
+                        ></lightning-button-icon>
+                      </div>
+                    </template>
+                    <div class="slds-text-body_small slds-text-color_weak">
+                      <template if:true={article.formattedLastModifiedDate}>
+                        Updated: {article.formattedLastModifiedDate}
+                      </template>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </template>
+          </div>
+
+          <!-- Pagination -->
+          <div class="slds-grid slds-grid_align-spread slds-m-top_large slds-m-bottom_large">
+            <div>
+              <lightning-button
+                label="Previous"
+                variant="neutral"
+                onclick={handlePreviousPage}
+                disabled={isPreviousDisabled}
+                icon-name="utility:chevronleft"
+                icon-position="left"
+              ></lightning-button>
+            </div>
+            <div class="slds-text-heading_small slds-align-middle">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div>
+              <lightning-button
+                label="Next"
+                variant="neutral"
+                onclick={handleNextPage}
+                disabled={isNextDisabled}
+                icon-name="utility:chevronright"
+                icon-position="right"
+              ></lightning-button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Popular Articles Section (shown when no search results) -->
+        <template if:true={showPopularArticles}>
+          <template if:false={isLoading}>
+            <div class="slds-m-bottom_x-large">
+              <div class="slds-text-heading_medium slds-m-bottom_medium">
+                Popular Articles
+              </div>
+              <div class="slds-grid slds-wrap">
+                <template for:each={popularArticles} for:item="article">
+                  <div
+                    key={article.id}
+                    class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-3"
+                  >
+                    <article class="slds-card slds-m-bottom_medium article-card">
+                      <div class="slds-card__header slds-grid">
+                        <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                          <div class="slds-media__figure">
+                            <lightning-badge
+                              label={article.source}
+                              class={article.badgeClass}
+                            ></lightning-badge>
+                          </div>
+                          <div class="slds-media__body">
+                            <h2 class="slds-card__header-title">
+                              <a
+                                href="javascript:void(0);"
+                                data-id={article.id}
+                                data-source={article.source}
+                                onclick={handleViewArticle}
+                                class="slds-card__header-link"
+                              >
+                                {article.title}
+                              </a>
+                            </h2>
+                          </div>
+                        </header>
+                      </div>
+                      <div class="slds-card__body slds-card__body_inner">
+                        <p class="slds-text-body_regular slds-m-bottom_small">{article.snippet}</p>
+                        <template if:true={article.tags}>
+                          <div class="slds-m-bottom_small">
+                            <template for:each={article.tags} for:item="tag">
+                              <lightning-badge
+                                key={tag}
+                                label={tag}
+                                class="slds-m-right_xx-small slds-m-bottom_xx-small"
+                              ></lightning-badge>
+                            </template>
+                          </div>
+                        </template>
+                        <template if:true={article.url}>
+                          <div class="slds-grid slds-grid_align-spread slds-m-bottom_small article-link-container">
+                            <div class="slds-grid slds-grid_align-center slds-grow">
+                              <lightning-formatted-url
+                                value={article.url}
+                                label=""
+                                target="_blank"
+                                class="slds-text-body_small"
+                              ></lightning-formatted-url>
+                            </div>
+                            <lightning-button-icon
+                              icon-name="utility:copy"
+                              variant="border-filled"
+                              alternative-text="Copy link"
+                              title="Copy link to clipboard"
+                              data-url={article.url}
+                              onclick={handleCopyLink}
+                              class="slds-m-left_x-small copy-link-button"
+                            ></lightning-button-icon>
+                          </div>
+                        </template>
+                        <div class="slds-text-body_small slds-text-color_weak">
+                          <template if:true={article.viewCount}>
+                            <span class="slds-m-right_small">{article.viewCount} views</span>
+                          </template>
+                          <template if:true={article.formattedLastModifiedDate}>
+                            Updated: {article.formattedLastModifiedDate}
+                          </template>
+                        </div>
+                      </div>
+                    </article>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </template>
+
+        <!-- Categories Section (shown when no search results) -->
+        <template if:true={showCategories}>
+          <template if:false={isLoading}>
+            <div class="slds-m-bottom_x-large">
+              <div class="slds-text-heading_medium slds-m-bottom_medium">
+                Categories
+              </div>
+              <div class="slds-grid slds-wrap">
+                <template for:each={categories} for:item="category">
+                  <div
+                    key={category.id}
+                    class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-3"
+                  >
+                    <div class="slds-card slds-m-bottom_medium">
+                      <div class="slds-card__body slds-card__body_inner">
+                        <h3 class="slds-text-heading_small slds-m-bottom_small">
+                          <a
+                            href="javascript:void(0);"
+                            data-category-id={category.id}
+                            onclick={handleCategoryClick}
+                            class="slds-card__header-link"
+                          >
+                            {category.name}
+                          </a>
+                        </h3>
+                        <template if:true={category.description}>
+                          <p class="slds-text-body_regular slds-text-color_weak">
+                            {category.description}
+                          </p>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </template>
+
+        <!-- Loading Popular Content -->
+        <template if:true={isLoadingPopular}>
+          <template if:false={isLoading}>
+            <div class="slds-align_absolute-center slds-m-vertical_medium">
+              <lightning-spinner alternative-text="Loading popular articles and categories"></lightning-spinner>
+            </div>
+          </template>
+        </template>
+
+        <!-- No Results and No Popular Content -->
+        <template if:false={hasResults}>
+          <template if:false={isLoading}>
+            <template if:false={showPopularArticles}>
+              <template if:false={showCategories}>
+                <template if:false={isLoadingPopular}>
+                  <div class="slds-box slds-theme_shade slds-align_absolute-center slds-m-vertical_xx-large">
+                    <div class="slds-text-heading_medium slds-m-bottom_small">
+                      No articles found
+                    </div>
+                    <div class="slds-text-body_regular slds-text-color_weak">
+                      Try adjusting your search query or filters
+                    </div>
+                  </div>
+                </template>
+              </template>
+            </template>
+          </template>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- Article Viewer Modal -->
+  <template if:true={showArticleModal}>
+    <c-article-viewer
+      article={selectedArticle}
+      is-loading={isLoadingArticle}
+      onclose={handleCloseModal}
+    ></c-article-viewer>
+  </template>
+</template>

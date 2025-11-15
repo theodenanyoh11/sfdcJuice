@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Helpjuice_Base_URL__c</fullName>
+    <label>Helpjuice Base URL</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Url</type>
+    <description>Base URL for Helpjuice account (e.g., https://youraccount.helpjuice.com)</description>
+    <externalId>false</externalId>
+</CustomField>

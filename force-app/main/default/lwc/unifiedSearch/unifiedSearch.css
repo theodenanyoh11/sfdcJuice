@@ -1,0 +1,47 @@
+.sidebar-filters {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.article-card {
+  transition: box-shadow 0.2s ease;
+}
+
+.article-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.large-search-input {
+  --slds-c-input-sizing-min-height: 3.5rem;
+}
+
+.large-search-input .slds-input {
+  font-size: 1.125rem;
+  padding: 0.875rem 1rem;
+  min-height: 3.5rem;
+}
+
+/* Article link container */
+.article-link-container {
+  align-items: center;
+  padding: 0.5rem 0;
+  border-top: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e5e5e5;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.article-link-container lightning-formatted-url {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.copy-link-button {
+  flex-shrink: 0;
+}
+

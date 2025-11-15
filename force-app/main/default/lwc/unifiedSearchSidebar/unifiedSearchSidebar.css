@@ -1,0 +1,26 @@
+.results-container {
+  overflow-y: auto;
+}
+
+/* Article link container */
+.article-link-container {
+  align-items: center;
+  padding: 0.25rem 0;
+  border-top: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e5e5e5;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.article-link-container lightning-formatted-url {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.copy-link-button {
+  flex-shrink: 0;
+}
+

@@ -1,0 +1,169 @@
+<template>
+  <lightning-card title="Knowledge Search" icon-name="standard:knowledge">
+    <div class="slds-p-around_small">
+      <!-- Compact Search Bar -->
+      <div class="slds-m-bottom_small">
+        <lightning-input
+          type="text"
+          label="Search"
+          value={searchQuery}
+          onchange={handleSearchInputChange}
+          onkeypress={handleKeyPress}
+          placeholder="Search articles..."
+          variant="label-hidden"
+        >
+        </lightning-input>
+      </div>
+
+      <!-- Source Filter -->
+      <div class="slds-m-bottom_small">
+        <lightning-combobox
+          label="Source"
+          value={sourceFilter}
+          options={sourceOptions}
+          onchange={handleSourceFilterChange}
+          variant="label-hidden"
+          placeholder="All Sources"
+        ></lightning-combobox>
+      </div>
+
+      <!-- Search Button -->
+      <div class="slds-m-bottom_small">
+        <lightning-button
+          label="Search"
+          variant="brand"
+          onclick={handleSearch}
+          class="slds-size_full"
+        ></lightning-button>
+      </div>
+
+      <!-- Loading Spinner -->
+      <template if:true={isLoading}>
+        <div class="slds-align_absolute-center slds-m-vertical_medium">
+          <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+        </div>
+      </template>
+
+      <!-- Error Message -->
+      <template if:true={hasError}>
+        <div class="slds-box slds-theme_error slds-m-vertical_small">
+          <div class="slds-text-body_small">{errorMessage}</div>
+        </div>
+      </template>
+
+      <!-- Results Count -->
+      <template if:true={hasResults}>
+        <div class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">
+          {totalCount} result(s)
+        </div>
+      </template>
+
+      <!-- Results List - Scrollable -->
+      <div class="results-container slds-scrollable_y" style="max-height: 60vh;">
+        <template if:true={hasResults}>
+          <template for:each={articles} for:item="article">
+            <div key={article.id} class="slds-m-bottom_x-small">
+              <article class="slds-card slds-card_boundary">
+                <div class="slds-card__body slds-card__body_inner">
+                  <div class="slds-media">
+                    <div class="slds-media__figure">
+                      <lightning-badge
+                        label={article.source}
+                        class={article.badgeClass}
+                      ></lightning-badge>
+                    </div>
+                    <div class="slds-media__body">
+                      <h3 class="slds-card__header-title">
+                        <a
+                          href="javascript:void(0);"
+                          data-id={article.id}
+                          data-source={article.source}
+                          onclick={handleViewArticle}
+                          class="slds-text-link"
+                        >
+                          {article.title}
+                        </a>
+                      </h3>
+                      <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                        {article.snippet}
+                      </p>
+                      <template if:true={article.url}>
+                        <div class="slds-grid slds-grid_align-spread slds-m-top_xx-small article-link-container">
+                          <div class="slds-grid slds-grid_align-center slds-grow">
+                            <lightning-formatted-url
+                              value={article.url}
+                              label=""
+                              target="_blank"
+                              class="slds-text-body_small"
+                            ></lightning-formatted-url>
+                          </div>
+                          <lightning-button-icon
+                            icon-name="utility:copy"
+                            variant="border-filled"
+                            alternative-text="Copy link"
+                            title="Copy link to clipboard"
+                            data-url={article.url}
+                            onclick={handleCopyLink}
+                            class="slds-m-left_x-small copy-link-button"
+                          ></lightning-button-icon>
+                        </div>
+                      </template>
+                      <template if:true={article.formattedLastModifiedDate}>
+                        <div class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                          Updated: {article.formattedLastModifiedDate}
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </template>
+
+          <!-- Compact Pagination -->
+          <div class="slds-grid slds-grid_align-spread slds-m-top_small">
+            <lightning-button
+              label="Previous"
+              variant="neutral"
+              onclick={handlePreviousPage}
+              disabled={isPreviousDisabled}
+              icon-name="utility:chevronleft"
+              icon-position="left"
+              class="slds-size_1-of-2"
+            ></lightning-button>
+            <lightning-button
+              label="Next"
+              variant="neutral"
+              onclick={handleNextPage}
+              disabled={isNextDisabled}
+              icon-name="utility:chevronright"
+              icon-position="right"
+              class="slds-size_1-of-2"
+            ></lightning-button>
+          </div>
+        </template>
+
+        <!-- No Results -->
+        <template if:false={hasResults}>
+          <template if:false={isLoading}>
+            <div class="slds-text-align_center slds-m-vertical_medium">
+              <div class="slds-text-body_small slds-text-color_weak">
+                No articles found
+              </div>
+            </div>
+          </template>
+        </template>
+      </div>
+    </div>
+  </lightning-card>
+
+  <!-- Article Viewer Modal -->
+  <template if:true={showArticleModal}>
+    <c-article-viewer
+      article={selectedArticle}
+      is-loading={isLoadingArticle}
+      onclose={handleCloseModal}
+    ></c-article-viewer>
+  </template>
+</template>
+

@@ -1,0 +1,20 @@
+{
+  "packageDirectories": [
+    {
+      "versionName": "ver 0.1",
+      "versionNumber": "0.1.0.NEXT",
+      "path": "force-app",
+      "default": true,
+      "package": "sfdcJuice",
+      "versionDescription": "Unified search for Helpjuice and Salesforce Knowledge"
+    }
+  ],
+  "name": "sfdcJuice",
+  "namespace": "",
+  "sfdcLoginUrl": "https://login.salesforce.com",
+  "sourceApiVersion": "65.0",
+  "packageAliases": {
+    "sfdcJuice": "0HogK0000000YuXSAU",
+    "sfdcJuice@0.1.0-1": "04tgK0000007HybQAE"
+  }
+}

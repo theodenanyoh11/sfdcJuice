@@ -1,0 +1,173 @@
+/* Article Viewer Styles */
+
+/* Modal content styling */
+.article-modal-content {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Article content wrapper */
+.article-content-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Article content styling - preserve Helpjuice formatting */
+.article-content {
+  width: 100%;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Helpjuice article content styling */
+.article-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem auto;
+  border-radius: 0.25rem;
+}
+
+.article-content :deep(p) {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.article-content :deep(h1),
+.article-content :deep(h2),
+.article-content :deep(h3),
+.article-content :deep(h4),
+.article-content :deep(h5),
+.article-content :deep(h6) {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.article-content :deep(ul),
+.article-content :deep(ol) {
+  margin-bottom: 1rem;
+  padding-left: 2rem;
+}
+
+.article-content :deep(li) {
+  margin-bottom: 0.5rem;
+}
+
+.article-content :deep(blockquote) {
+  margin: 1rem 0;
+  padding-left: 1rem;
+  border-left: 3px solid #d8dde6;
+  font-style: italic;
+  color: #54698d;
+}
+
+.article-content :deep(code) {
+  background-color: #f3f2f2;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+}
+
+.article-content :deep(pre) {
+  background-color: #f3f2f2;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.article-content :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
+}
+
+.article-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.article-content :deep(table th),
+.article-content :deep(table td) {
+  padding: 0.5rem;
+  border: 1px solid #d8dde6;
+  text-align: left;
+}
+
+.article-content :deep(table th) {
+  background-color: #f3f2f2;
+  font-weight: 600;
+}
+
+.article-content :deep(a) {
+  color: #0070d2;
+  text-decoration: none;
+}
+
+.article-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+/* Helpjuice-specific classes */
+.article-content :deep(.helpjuice-inserted-article) {
+  width: 100%;
+  max-width: 100%;
+}
+
+.article-content :deep(.helpjuice-inserted-article-body) {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Ensure videos are responsive */
+.article-content :deep(video),
+.article-content :deep(iframe) {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem auto;
+}
+
+/* Loading state */
+.article-content-loading {
+  text-align: center;
+  padding: 2rem;
+  color: #54698d;
+}
+
+/* Iframe container for Helpjuice articles */
+.article-iframe-container {
+  width: 100%;
+  height: 70vh;
+  min-height: 500px;
+  position: relative;
+  border: 1px solid #d8dde6;
+  border-radius: 0.25rem;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.article-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  border-radius: 0.25rem;
+}
+
+/* Fallback message when iframe fails */
+.iframe-error-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 500px;
+  background-color: rgba(255, 255, 255, 0.95);
+  z-index: 10;
+}
+
