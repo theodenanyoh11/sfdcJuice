@@ -41,9 +41,9 @@ public class SalesforceKnowledgeService {
       List<List<SObject>> searchResults = Search.query(soslQuery);
 
       if (!searchResults.isEmpty() && !searchResults[0].isEmpty()) {
-        List<Knowledge__kav> knowledgeArticles = (List<Knowledge__kav>) searchResults[0];
+        List<SObject> knowledgeArticles = searchResults[0];
 
-        for (Knowledge__kav ka : knowledgeArticles) {
+        for (SObject ka : knowledgeArticles) {
           UnifiedArticle article = mapKnowledgeArticleToUnified(ka);
           if (article != null) {
             articles.add(article);
@@ -70,30 +70,24 @@ public class SalesforceKnowledgeService {
     UnifiedArticle article = null;
 
     try {
-      List<Knowledge__kav> articles = [
-        SELECT
-          Id,
-          Title,
-          Summary,
-          ArticleBody__c,
-          UrlName,
-          PublishStatus,
-          CreatedDate,
-          LastModifiedDate,
-          CreatedBy.Name,
-          Language,
-          FirstPublishedDate,
-          LastPublishedDate,
-          KnowledgeArticleId,
-          VersionNumber
-        FROM Knowledge__kav
-        WHERE
-          (Id = :articleId OR KnowledgeArticleId = :articleId)
-          AND PublishStatus = 'Online'
-          AND IsLatestVersion = true
-        WITH SECURITY_ENFORCED
-        LIMIT 1
-      ];
+      // Use dynamic SOQL to query Knowledge articles
+      // Escape the articleId to prevent SOQL injection
+      String escapedArticleId = String.escapeSingleQuotes(articleId);
+      String soqlQuery =
+        'SELECT Id, Title, Summary, ArticleBody__c, UrlName, PublishStatus, ' +
+        'CreatedDate, LastModifiedDate, CreatedBy.Name, Language, ' +
+        'FirstPublishedDate, LastPublishedDate, KnowledgeArticleId, VersionNumber ' +
+        'FROM ' +
+        KNOWLEDGE_OBJECT +
+        ' WHERE (Id = \'' +
+        escapedArticleId +
+        '\' OR KnowledgeArticleId = \'' +
+        escapedArticleId +
+        '\') ' +
+        'AND PublishStatus = \'Online\' AND IsLatestVersion = true ' +
+        'WITH SECURITY_ENFORCED LIMIT 1';
+
+      List<SObject> articles = Database.query(soqlQuery);
 
       if (!articles.isEmpty()) {
         article = mapKnowledgeArticleToUnified(articles[0]);
@@ -110,54 +104,67 @@ public class SalesforceKnowledgeService {
 
   /**
    * @description Maps a Salesforce Knowledge article to UnifiedArticle
-   * @param ka The Knowledge article
+   * @param ka The Knowledge article (SObject)
    * @return UnifiedArticle The unified article representation
    */
-  private static UnifiedArticle mapKnowledgeArticleToUnified(
-    Knowledge__kav ka
-  ) {
+  private static UnifiedArticle mapKnowledgeArticleToUnified(SObject ka) {
     UnifiedArticle article = new UnifiedArticle();
     article.source = 'Salesforce';
 
     try {
       // Map ID
-      article.id = ka.Id;
-      article.metadata.put('KnowledgeArticleId', ka.KnowledgeArticleId);
-      article.metadata.put('VersionNumber', ka.VersionNumber);
+      article.id = String.valueOf(ka.get('Id'));
+      if (ka.get('KnowledgeArticleId') != null) {
+        article.metadata.put('KnowledgeArticleId', String.valueOf(ka.get('KnowledgeArticleId')));
+      }
+      if (ka.get('VersionNumber') != null) {
+        article.metadata.put('VersionNumber', String.valueOf(ka.get('VersionNumber')));
+      }
 
       // Map title
-      article.title = ka.Title;
+      article.title = String.valueOf(ka.get('Title'));
 
       // Map content (ArticleBody__c can be Rich Text)
-      article.content = ka.ArticleBody__c;
+      if (ka.get('ArticleBody__c') != null) {
+        article.content = String.valueOf(ka.get('ArticleBody__c'));
+      }
 
       // Map snippet (Summary)
-      article.snippet = ka.Summary;
+      if (ka.get('Summary') != null) {
+        article.snippet = String.valueOf(ka.get('Summary'));
+      }
 
       // Build URL - Knowledge articles use UrlName
-      if (String.isNotBlank(ka.UrlName)) {
+      if (ka.get('UrlName') != null && String.isNotBlank(String.valueOf(ka.get('UrlName')))) {
         String baseUrl = URL.getOrgDomainUrl().toExternalForm();
-        article.url =
-          baseUrl +
-          '/articles/Knowledge/' +
-          ka.KnowledgeArticleId +
-          '/' +
-          ka.UrlName;
+        String knowledgeArticleId = String.valueOf(ka.get('KnowledgeArticleId'));
+        String urlName = String.valueOf(ka.get('UrlName'));
+        article.url = baseUrl + '/articles/Knowledge/' + knowledgeArticleId + '/' + urlName;
       }
 
       // Map dates
-      article.publishedDate = ka.FirstPublishedDate != null
-        ? ka.FirstPublishedDate
-        : ka.CreatedDate;
-      article.lastModifiedDate = ka.LastModifiedDate;
+      if (ka.get('FirstPublishedDate') != null) {
+        article.publishedDate = (DateTime) ka.get('FirstPublishedDate');
+      } else if (ka.get('CreatedDate') != null) {
+        article.publishedDate = (DateTime) ka.get('CreatedDate');
+      }
+      
+      if (ka.get('LastModifiedDate') != null) {
+        article.lastModifiedDate = (DateTime) ka.get('LastModifiedDate');
+      }
 
-      // Map author
-      if (ka.CreatedBy != null) {
-        article.authorName = ka.CreatedBy.Name;
+      // Map author (CreatedBy is a relationship, need to get the Name field)
+      if (ka.getSObject('CreatedBy') != null) {
+        SObject createdBy = ka.getSObject('CreatedBy');
+        if (createdBy.get('Name') != null) {
+          article.authorName = String.valueOf(createdBy.get('Name'));
+        }
       }
 
       // Map language
-      article.language = ka.Language;
+      if (ka.get('Language') != null) {
+        article.language = String.valueOf(ka.get('Language'));
+      }
 
       // Map article type
       article.articleType = 'Knowledge';
