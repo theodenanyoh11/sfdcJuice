@@ -70,6 +70,25 @@ private class UnifiedSearchServiceTest {
   }
 
   @isTest
+  static void testUnifiedSearchServiceGetArticleWithUnknownSource() {
+    Test.startTest();
+    UnifiedArticle article = UnifiedSearchService.getArticle('123', 'UnknownSource');
+    Test.stopTest();
+
+    System.assertEquals(null, article, 'Unknown source should return null');
+  }
+
+  @isTest
+  static void testUnifiedSearchServiceWithWhitespaceQuery() {
+    UnifiedSearchRequest request = new UnifiedSearchRequest();
+    request.searchQuery = '   '; // whitespace only
+
+    UnifiedSearchResponse response = UnifiedSearchService.search(request);
+    System.assertEquals(true, response.hasError);
+    System.assertEquals(true, String.isNotBlank(response.errorMessage));
+  }
+
+  @isTest
   static void testSalesforceKnowledgeServiceSearch() {
     // Note: This test requires Knowledge articles in the org
     // In a real scenario, you would create test Knowledge articles
